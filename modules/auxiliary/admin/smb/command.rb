@@ -29,13 +29,14 @@ class Metasploit3 < Msf::Auxiliary
 
 	         'Author'         => [
 	         	'Royce Davis <rdavis[at]accuvant.com>',
-	         	'Twitter: <[at]R3dy__>', 		# Metasploit module
+	         	'Twitter: <[at]R3dy__>',
 	         ],
  
 	         'License'        => MSF_LICENSE,
 	         'References'     => [
-	         	[ 'URL', 'http://www.pentestgeek.com/blog-article/' ],
-	         	[ 'URL', 'http://www.accuvant.com/blog-article/' ],
+	         	[ 'URL', 'http://www.pentestgeek.com' ],
+	         	[ 'URL', 'http://www.accuvant.com' ],
+	         	[ 'URL', 'http://sourceforge.net/projects/smbexec/' ],
 	         ],
 	    ))
 

@@ -34,8 +34,9 @@ class Metasploit3 < Msf::Auxiliary
  
 	         'License'        => MSF_LICENSE,
 	         'References'     => [
-	         	[ 'URL', 'http://www.pentestgeek.com/blog-article/' ],
-	         	[ 'URL', 'http://www.accuvant.com/blog-article/' ],
+	         	[ 'URL', 'http://www.pentestgeek.com' ],
+	         	[ 'URL', 'http://www.accuvant.com' ],
+	         	[ 'URL', 'http://sourceforge.net/projects/smbexec.' ],
 	         ],
 	      ))
 

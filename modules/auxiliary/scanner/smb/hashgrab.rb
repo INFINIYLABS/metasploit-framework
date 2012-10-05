@@ -44,7 +44,7 @@ class Metasploit3 < Msf::Auxiliary
 		register_options([
 			OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server', 'C$']),
 			OptString.new('LOGDIR', [true, 'This is a directory on your local attacking system used to store Hive files and hashes', '/tmp/msfhashes']),
-			OptString.new('RPORT', [true, 'The Target port son', 445]),
+			OptString.new('RPORT', [true, 'The Target port', 445]),
 		], self.class)
 
 		deregister_options('RHOST')

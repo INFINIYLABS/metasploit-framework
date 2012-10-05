@@ -297,7 +297,7 @@ class Metasploit3 < Msf::Auxiliary
 				obj << ":"
 				obj << hashes[1]
 				obj << ":::"
-				puts obj.join
+				print_good("#{obj.join}")
 			end
 		rescue StandardError => dumpcreds
 			vprint_error("Error extracting creds from hives: #{dumpcreds}")

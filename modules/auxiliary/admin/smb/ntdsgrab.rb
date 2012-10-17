@@ -59,7 +59,7 @@ class Metasploit3 < Msf::Auxiliary
 		bat = "C:\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.bat"
 		cmd = "C:\\WINDOWS\\SYSTEM32\\cmd.exe"
 		createvsc = "vssadmin create shadow /For=%SYSTEMDRIVE%"
-    logdir = datastore['LOGDIR']
+		logdir = datastore['LOGDIR']
 		
 		#Try and Connect to the target
 		begin

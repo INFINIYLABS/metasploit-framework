@@ -110,16 +110,21 @@ class Metasploit3 < Msf::Auxiliary
 	# Retrive output from command
 	#-----------------------------
 	def get_output(smbshare, ip, file)
-		simple.connect("\\\\#{ip}\\#{smbshare}")
-		outfile = simple.open(file, 'ro')
-		output = outfile.read 
-		outfile.close
-		simple.disconnect("\\\\#{ip}\\#{smbshare}")
-		if output.empty?
-			print_status("Command finished with no output")
+		begin
+			simple.connect("\\\\#{ip}\\#{smbshare}")
+			outfile = simple.open(file, 'ro')
+			output = outfile.read 
+			outfile.close
+			simple.disconnect("\\\\#{ip}\\#{smbshare}")
+			if output.empty?
+				print_status("Command finished with no output")
+				return
+			end
+			print_good("Command completed successfuly! Output from: #{ip}\r\n#{output}")
+		rescue StandardError => output_error
+			print_error("#{ip} - Error getting command output. #{output_error.class}. #{output_error}.")
 			return
 		end
-		print_good("Command completed successfuly! Output from: #{ip}\r\n#{output}")
 	end
 	
 

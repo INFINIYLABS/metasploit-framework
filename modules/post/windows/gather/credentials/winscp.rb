@@ -1,7 +1,3 @@
-##
-# $Id$
-##
-
 # post/windows/gather/enum_vnc_pw.rb
 
 ##
@@ -16,6 +12,7 @@ require 'rex'
 require 'msf/core/post/windows/registry'
 require 'rex/parser/ini'
 require 'msf/core/post/windows/user_profiles'
+require 'msf/core/auxiliary/report'
 
 class Metasploit3 < Msf::Post
 	include Msf::Post::Windows::Registry
@@ -25,7 +22,6 @@ class Metasploit3 < Msf::Post
 	def initialize(info={})
 		super(update_info(info,
 			'Name'          => 'Windows Gather WinSCP Saved Password Extraction',
-			'Version'       => '$Revision$',
 			'Description'   => %q{
 				This module extracts weakly encrypted saved passwords from
 				WinSCP. It searches for saved sessions in the Windows Registry
@@ -34,7 +30,7 @@ class Metasploit3 < Msf::Post
 				},
 			'License'       => MSF_LICENSE,
 			'Author'        => [ 'theLightCosine'],
-			'Platform'      => [ 'windows' ],
+			'Platform'      => [ 'win' ],
 			'SessionTypes'  => [ 'meterpreter' ]
 		))
 	end

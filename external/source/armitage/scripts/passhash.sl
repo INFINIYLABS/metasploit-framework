@@ -41,6 +41,7 @@ import ui.*;
 
 		# strip any funky characters that will cause this call to throw an exception
 		$user = replace($user, '\P{Graph}', "");
+		$hash = fixPass($hash);
 
 		[$queue addCommand: $null, "creds -a $host -p 445 -t smb_hash -u $user -P $hash"];
 	}
@@ -95,6 +96,34 @@ sub createCredentialsTab {
 	local('$dialog $table $model $panel $export $crack $refresh');
 	($dialog, $table, $model) = show_hashes("", 320);
 	[$dialog removeAll];
+
+	addMouseListener($table, lambda({
+		if ([$1 isPopupTrigger]) {
+			local('$popup $entries');
+			$popup = [new JPopupMenu];
+			$entries = [$model getSelectedValuesFromColumns: $table, @("user", "pass", "host")];
+			item($popup, "Delete", 'D', lambda({
+				local('$queue $entry $user $pass $host');
+				$queue = [new armitage.ConsoleQueue: $client];
+				foreach $entry ($entries) {
+					($user, $pass, $host) = $entry;
+					$pass = fixPass($pass);
+					[$queue addCommand: $null, "creds -d $host -u $user -P $pass"];
+				}
+
+				[$queue addCommand: "x", "creds -h"];
+
+				[$queue addListener: lambda({
+					[$queue stop];
+					refreshCredsTable($model, $null);
+				}, \$model, \$queue)];
+
+				[$queue start];
+				[$queue stop];
+			}, \$table, \$model, \$entries));
+			[$popup show: [$1 getSource], [$1 getX], [$1 getY]];
+		}
+	}, \$table, \$model));
 
 	$panel = [new JPanel];
 	[$panel setLayout: [new BorderLayout]];
@@ -297,19 +326,24 @@ sub show_login_dialog {
 }
 
 sub createUserPassFile {
-	local('$handle $user $pass $type $row $2 $name');
+	local('$handle $user $pass $type $row $2 $name %entries');
 	$name = "userpass" . rand(10000) . ".txt";
 
-	$handle = openf("> $+ $name");
+	# loop through our entries and store them
+	%entries = ohash();
 	foreach $row ($1) {
 		($user, $pass, $type) = values($row, @("user", "pass", "ptype"));
 		if ($type eq "password" || $type eq $2) {
-			println($handle, "$user $pass");
+			%entries["$user $pass"] = "$user $pass";
 		}
 		else {
-			println($handle, "$user");
+			%entries[$user] = $user;
 		}
 	}	
+
+	# print out unique entry values
+	$handle = openf("> $+ $name");
+	printAll($handle, values(%entries));
 	closef($handle);
 
 	if ($client !is $mclient) {
@@ -338,3 +372,34 @@ sub launchBruteForce {
 		[$console start];
 	}, $type => $1, $module => $2, $options => $3, $title => $4));
 }
+
+sub credentialHelper {
+	thread(lambda({ 
+		[Thread yield];
+
+		# gather our credentials please
+		local('$creds $cred @creds');
+		$creds = call($mclient, "db.creds2", [new HashMap])["creds2"];
+		foreach $cred ($creds) {
+			if ($PASS eq "SMBPass" || $cred['ptype'] ne "smb_hash") {
+				push(@creds, $cred);
+			}
+		}
+
+		# pop up a dialog to let the user choose their favorite set
+		quickListDialog("Choose credentials", "Select", @("user", "user", "pass", "host"), @creds, $width => 640, $height => 240, lambda({
+			if ($1 eq "") {
+				return;
+			}
+
+			local('$user $pass');
+			$user = [$3 getSelectedValueFromColumn: $2, 'user'];
+			$pass = [$3 getSelectedValueFromColumn: $2, 'pass'];
+
+			[$model setValueForKey: $USER, "Value", $user];
+			[$model setValueForKey: $PASS, "Value", $pass];
+			[$model fireListeners];
+		}, \$callback, \$model, \$USER, \$PASS));
+	}, \$USER, \$PASS, \$model, $callback => $4));
+}
+

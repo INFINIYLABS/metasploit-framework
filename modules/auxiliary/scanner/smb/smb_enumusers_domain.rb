@@ -109,16 +109,15 @@ class Metasploit3 < Msf::Auxiliary
 			begin
 				dcerpc_bind(handle)
 				stub =
-					NDR.uwstring("\\\\" + ip) +	# Server Name
-					NDR.long(1) +						# Level
-					NDR.long(1) +						# Ctr
+					NDR.uwstring("\\\\" + ip) +		# Server Name
+					NDR.long(1) +					# Level
+					NDR.long(1) +					# Ctr
 					NDR.long(rand(0xffffffff)) +	# ref id
-					NDR.long(0) +						# entries read
-					NDR.long(0) +						# null ptr to user0
-
+					NDR.long(0) +					# entries read
+					NDR.long(0) +					# null ptr to user0
 					NDR.long(0xffffffff) +			# Prefmaxlen
 					NDR.long(rand(0xffffffff)) +	# ref id
-					NDR.long(0)							# null ptr to resume handle
+					NDR.long(0)						# null ptr to resume handle
 
 				dcerpc.call(2,stub)
 

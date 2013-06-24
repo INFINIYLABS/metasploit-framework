@@ -179,9 +179,8 @@ class Module
 	#
 
 	def print_prefix
-		if(
-			datastore['TimestampOutput'] =~ /^(t|y|1)/i or
-			framework.datastore['TimestampOutput'] =~ /^(t|y|1)/i
+		if (datastore['TimestampOutput'] =~ /^(t|y|1)/i) || (
+			framework && framework.datastore['TimestampOutput'] =~ /^(t|y|1)/i
 		)
 			prefix = "[#{Time.now.strftime("%Y.%m.%d-%H:%M:%S")}] "
 
@@ -192,8 +191,9 @@ class Module
 			end
 
 			return prefix
+		else
+			return ''
 		end
-		''
 	end
 
 	def print_status(msg='')
@@ -353,6 +353,16 @@ class Module
 	#
 	def disclosure_date
 		date_str = Date.parse(module_info['DisclosureDate'].to_s) rescue nil
+	end
+
+	#
+	# Checks to see if the target is vulnerable, returning unsupported if it's
+	# not supported.
+	#
+	# This method is designed to be overriden by exploit modules.
+	#
+	def check
+		Msf::Exploit::CheckCode::Unsupported
 	end
 
 	#

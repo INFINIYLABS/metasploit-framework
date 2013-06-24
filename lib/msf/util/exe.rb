@@ -364,10 +364,11 @@ require 'digest/sha1'
 		exe
 	end
 
-	def self.to_win32pe_only(framework, code, opts={})
+	def self.to_winpe_only(framework, code, opts={}, arch="x86")
 
 		# Allow the user to specify their own EXE template
-		set_template_default(opts, "template_x86_windows_old.exe")
+
+		set_template_default(opts, "template_"+arch+"_windows.exe")
 
 		pe = Rex::PeParsey::Pe.new_from_file(opts[:template], true)
 
@@ -402,6 +403,7 @@ require 'digest/sha1'
 
 	def self.to_win32pe_old(framework, code, opts={})
 
+		payload = code.dup
 		# Allow the user to specify their own EXE template
 		set_template_default(opts, "template_x86_windows_old.exe")
 
@@ -410,17 +412,17 @@ require 'digest/sha1'
 			pe = fd.read(fd.stat.size)
 		}
 
-		if(code.length < 2048)
-			code << Rex::Text.rand_text(2048-code.length)
+		if(payload.length < 2048)
+			payload << Rex::Text.rand_text(2048-payload.length)
 		end
 
-		if(code.length > 2048)
+		if(payload.length > 2048)
 			raise RuntimeError, "The EXE generator now has a max size of 2048 bytes, please fix the calling module"
 		end
 
 		bo = pe.index('PAYLOAD:')
 		raise RuntimeError, "Invalid Win32 PE OLD EXE template: missing \"PAYLOAD:\" tag" if not bo
-		pe[bo, code.length] = code
+		pe[bo, payload.length] = payload
 
 		pe[136, 4] = [rand(0x100000000)].pack('V')
 
@@ -1967,7 +1969,11 @@ End Sub
 
 		when 'exe-only'
 			if(not arch or (arch.index(ARCH_X86)))
-				output = Msf::Util::EXE.to_win32pe_only(framework, code, exeopts)
+				output = Msf::Util::EXE.to_winpe_only(framework, code, exeopts)
+			end
+
+			if(arch and (arch.index( ARCH_X86_64 ) or arch.index( ARCH_X64 )))
+				output = Msf::Util::EXE.to_winpe_only(framework, code, exeopts, "x64")
 			end
 
 		when 'elf'

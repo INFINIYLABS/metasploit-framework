@@ -1386,17 +1386,16 @@ class Core
 		print_line
 		print_line "Keywords:"
 		{
-			"name"     => "Modules with a matching descriptive name",
-			"path"     => "Modules with a matching path or reference name",
-			"platform" => "Modules affecting this platform",
-			"port"     => "Modules with a matching remote port",
-			"type"     => "Modules of a specific type (exploit, auxiliary, or post)",
-			"app"      => "Modules that are client or server attacks",
-			"author"   => "Modules written by this author",
-			"cve"      => "Modules with a matching CVE ID",
-			"bid"      => "Modules with a matching Bugtraq ID",
-			"osvdb"    => "Modules with a matching OSVDB ID",
-			"edb"      => "Modules with a matching Exploit-DB ID"
+			'app'      => 'Modules that are client or server attacks',
+			'author'   => 'Modules written by this author',
+			'bid'      => 'Modules with a matching Bugtraq ID',
+			'cve'      => 'Modules with a matching CVE ID',
+			'edb'      => 'Modules with a matching Exploit-DB ID',
+			'name'     => 'Modules with a matching descriptive name',
+			'osvdb'    => 'Modules with a matching OSVDB ID',
+			'platform' => 'Modules affecting this platform',
+			'ref'      => 'Modules with a matching ref',
+			'type'     => 'Modules of a specific type (exploit, auxiliary, or post)',
 		}.each_pair do |keyword, description|
 			print_line "  #{keyword.ljust 10}:  #{description}"
 		end
@@ -1456,9 +1455,13 @@ class Core
 
 	end
 
-	def search_modules_sql(match)
+  # Prints table of modules matching the search_string.
+  #
+  # @param (see Msf::DBManager#search_modules)
+  # @return [void]
+	def search_modules_sql(search_string)
 		tbl = generate_module_table("Matching Modules")
-		framework.db.search_modules(match).each do |o|
+		framework.db.search_modules(search_string).each do |o|
 			tbl << [ o.fullname, o.disclosure_date.to_s, RankingName[o.rank].to_s, o.name ]
 		end
 		print_line(tbl.to_s)
@@ -1500,14 +1503,24 @@ class Core
 			return
 		end
 
+		color = driver.output.config[:color]
+
 		if args[0] == "off"
 			driver.init_ui(driver.input, Rex::Ui::Text::Output::Stdio.new)
-			print_status("Spooling is now disabled")
-			return
+			msg = "Spooling is now disabled"
+		else
+			driver.init_ui(driver.input, Rex::Ui::Text::Output::Tee.new(args[0]))
+			msg = "Spooling to file #{args[0]}..."
 		end
 
-		driver.init_ui(driver.input, Rex::Ui::Text::Output::Tee.new(args[0]))
-		print_status("Spooling to file #{args[0]}...")
+		# Restore color and prompt
+		driver.output.config[:color] = color
+		prompt = framework.datastore['Prompt'] || Msf::Ui::Console::Driver::DefaultPrompt
+		prompt_char = framework.datastore['PromptChar'] || Msf::Ui::Console::Driver::DefaultPromptChar
+		driver.update_prompt("#{prompt} #{active_module.type}(%bld%red#{active_module.shortname}%clr) ", prompt_char, true)
+
+		print_status(msg)
+		return
 	end
 
 	def cmd_sessions_help

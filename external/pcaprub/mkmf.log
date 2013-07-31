@@ -1,0 +1,249 @@
+have_func: checking for getifaddrs()... -------------------- yes
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib     -lruby-static  -lpthread -ldl -lobjc "
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: int main() {return 0;}
+/* end */
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib     -lruby-static  -lpthread -ldl -lobjc "
+conftest.c: In function ‘t’:
+conftest.c:5: error: ‘getifaddrs’ undeclared (first use in this function)
+conftest.c:5: error: (Each undeclared identifier is reported only once
+conftest.c:5: error: for each function it appears in.)
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: /*top*/
+4: int main() {return 0;}
+5: int t() { void ((*volatile p)()); p = (void ((*)()))getifaddrs; return 0; }
+/* end */
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib     -lruby-static  -lpthread -ldl -lobjc "
+conftest.c: In function ‘t’:
+conftest.c:5: warning: implicit declaration of function ‘getifaddrs’
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: /*top*/
+4: int main() {return 0;}
+5: int t() { getifaddrs(); return 0; }
+/* end */
+
+--------------------
+
+have_func: checking for getnameinfo()... -------------------- yes
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib     -lruby-static  -lpthread -ldl -lobjc "
+conftest.c: In function ‘t’:
+conftest.c:5: error: ‘getnameinfo’ undeclared (first use in this function)
+conftest.c:5: error: (Each undeclared identifier is reported only once
+conftest.c:5: error: for each function it appears in.)
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: /*top*/
+4: int main() {return 0;}
+5: int t() { void ((*volatile p)()); p = (void ((*)()))getnameinfo; return 0; }
+/* end */
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib     -lruby-static  -lpthread -ldl -lobjc "
+conftest.c: In function ‘t’:
+conftest.c:5: warning: implicit declaration of function ‘getnameinfo’
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: /*top*/
+4: int main() {return 0;}
+5: int t() { getnameinfo(); return 0; }
+/* end */
+
+--------------------
+
+have_header: checking for net/if_dl.h... -------------------- yes
+
+"gcc-4.2 -E -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe  conftest.c -o conftest.i"
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <net/if_dl.h>
+/* end */
+
+--------------------
+
+have_header: checking for netash/ash.h... -------------------- no
+
+"gcc-4.2 -E -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe  conftest.c -o conftest.i"
+conftest.c:3:24: error: netash/ash.h: No such file or directory
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <netash/ash.h>
+/* end */
+
+--------------------
+
+have_header: checking for netatalk/at.h... -------------------- no
+
+"gcc-4.2 -E -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe  conftest.c -o conftest.i"
+conftest.c:3:25: error: netatalk/at.h: No such file or directory
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <netatalk/at.h>
+/* end */
+
+--------------------
+
+have_header: checking for netax25/ax25.h... -------------------- no
+
+"gcc-4.2 -E -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe  conftest.c -o conftest.i"
+conftest.c:3:26: error: netax25/ax25.h: No such file or directory
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <netax25/ax25.h>
+/* end */
+
+--------------------
+
+have_header: checking for neteconet/ec.h... -------------------- no
+
+"gcc-4.2 -E -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe  conftest.c -o conftest.i"
+conftest.c:3:26: error: neteconet/ec.h: No such file or directory
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <neteconet/ec.h>
+/* end */
+
+--------------------
+
+have_header: checking for netipx/ipx.h... -------------------- no
+
+"gcc-4.2 -E -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe  conftest.c -o conftest.i"
+conftest.c:3:24: error: netipx/ipx.h: No such file or directory
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <netipx/ipx.h>
+/* end */
+
+--------------------
+
+have_header: checking for netpacket/packet.h... -------------------- no
+
+"gcc-4.2 -E -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe  conftest.c -o conftest.i"
+conftest.c:3:30: error: netpacket/packet.h: No such file or directory
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <netpacket/packet.h>
+/* end */
+
+--------------------
+
+have_header: checking for netrose/rose.h... -------------------- no
+
+"gcc-4.2 -E -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe  conftest.c -o conftest.i"
+conftest.c:3:26: error: netrose/rose.h: No such file or directory
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <netrose/rose.h>
+/* end */
+
+--------------------
+
+have_struct_member: checking for struct sockaddr.sa_len in sys/types.h,sys/socket.h,net/if.h... -------------------- yes
+
+"gcc-4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe   -c conftest.c"
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: #include <sys/types.h>
+4: #include <sys/socket.h>
+5: #include <net/if.h>
+6: 
+7: /*top*/
+8: int main() {return 0;}
+9: int s = (char *)&((struct sockaddr*)0)->sa_len - (char *)0;
+/* end */
+
+--------------------
+
+have_library: checking for pcap_open_live() in -lpcap... -------------------- yes
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib     -lruby-static -lpcap  -lpthread -ldl -lobjc "
+conftest.c: In function ‘t’:
+conftest.c:5: error: ‘pcap_open_live’ undeclared (first use in this function)
+conftest.c:5: error: (Each undeclared identifier is reported only once
+conftest.c:5: error: for each function it appears in.)
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: /*top*/
+4: int main() {return 0;}
+5: int t() { void ((*volatile p)()); p = (void ((*)()))pcap_open_live; return 0; }
+/* end */
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib     -lruby-static -lpcap  -lpthread -ldl -lobjc "
+conftest.c: In function ‘t’:
+conftest.c:5: warning: implicit declaration of function ‘pcap_open_live’
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: /*top*/
+4: int main() {return 0;}
+5: int t() { pcap_open_live(); return 0; }
+/* end */
+
+--------------------
+
+have_library: checking for pcap_setnonblock() in -lpcap... -------------------- yes
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib    -lpcap  -lruby-static -lpcap -lpcap  -lpthread -ldl -lobjc "
+conftest.c: In function ‘t’:
+conftest.c:5: error: ‘pcap_setnonblock’ undeclared (first use in this function)
+conftest.c:5: error: (Each undeclared identifier is reported only once
+conftest.c:5: error: for each function it appears in.)
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: /*top*/
+4: int main() {return 0;}
+5: int t() { void ((*volatile p)()); p = (void ((*)()))pcap_setnonblock; return 0; }
+/* end */
+
+"gcc-4.2 -o conftest -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/x86_64-darwin11.4.2 -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1/ruby/backward -I/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/include/ruby-1.9.1 -I. -I/Users/r3dy/.rvm/usr/include -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE    -O3 -ggdb -Wextra -Wno-unused-parameter -Wno-parentheses -Wno-long-long -Wno-missing-field-initializers -Wpointer-arith -Wwrite-strings -Wdeclaration-after-statement -Wshorten-64-to-32 -Wimplicit-function-declaration  -pipe conftest.c  -L. -L/Users/r3dy/.rvm/rubies/ruby-1.9.3-p194/lib -L/Users/r3dy/.rvm/usr/lib -L. -L/usr/local/lib    -lpcap  -lruby-static -lpcap -lpcap  -lpthread -ldl -lobjc "
+conftest.c: In function ‘t’:
+conftest.c:5: warning: implicit declaration of function ‘pcap_setnonblock’
+checked program was:
+/* begin */
+1: #include "ruby.h"
+2: 
+3: /*top*/
+4: int main() {return 0;}
+5: int t() { pcap_setnonblock(); return 0; }
+/* end */
+
+--------------------
+

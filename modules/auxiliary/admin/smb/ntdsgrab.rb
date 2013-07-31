@@ -1,5 +1,5 @@
 require 'msf/core'
-require 'msf/core/exploit/psexec'
+#require 'msf/core/exploit/psexec'
 
 class Metasploit3 < Msf::Auxiliary
 

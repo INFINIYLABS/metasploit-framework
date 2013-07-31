@@ -1,0 +1,3 @@
+use auxiliary/scanner/smb/smb_login
+path = '/Users/r3dy/test.txt'
+set RHOSTS "file:/#{path}"

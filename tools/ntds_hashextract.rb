@@ -59,7 +59,7 @@ def get_pek(db)
 		record = line.to_s.split("\t")
 		pek = record[@pek]
 		if !pek.to_s.empty?
-			return [pek[16,pek.size].to_s].pack("H*")
+			return [pek[16..-1].to_s].pack("H*")
 		end
 	end
 	return "No Pek"
@@ -93,23 +93,23 @@ end
 def decrypt_pek(bootkey, enc_pek)
   md5 = Digest::MD5.new
   md5.update(bootkey)
-  for i in (0...1000)
+  1000.times do |i|
     md5.update(enc_pek[0,16])
   end
   rc4 = OpenSSL::Cipher::Cipher.new('rc4')
   rc4.key = md5.digest
-  pek=rc4.update(enc_pek[16,enc_pek.size])
-  return pek[36,pek.size]
+  pek=rc4.update(enc_pek[16,52])
+  return pek[36,52]
 end
 
 def decrypt_with_pek(pek, enc_hash)
     md5 = Digest::MD5.new
     begin
       md5.update(pek)
-      md5.update(enc_hash[0,16])
+      md5.update(enc_hash.to_s[0,16])
       rc4 = OpenSSL::Cipher::Cipher.new('rc4')
       rc4.key = md5.digest
-      hash = rc4.update(enc_hash[16,enc_hash.size])
+      hash = rc4.update(enc_hash.to_s[16,32])
     rescue
       return "NO PASSWORD"
     end
@@ -126,17 +126,17 @@ def decrypt_single_hash(rid, enc_hash)
   d2.padding = 0
   d2.key = des_k2
   
-  p1 = d1.decrypt.update(enc_hash[0,8])
+  p1 = d1.decrypt.update(enc_hash.to_s[0,8])
   p1 << d1.final
-  
-  p2 = d2.decrypt.update(enc_hash[8,enc_hash.length])
+
+  p2 = d2.decrypt.update(enc_hash.to_s[8,16])
   p2 << d2.final
   hash = ""
   hash << p1 + p2
-  return hash.unpack("H*")[0].to_s
+  return hash.unpack("H*")[0]
 end
 
- def sid_to_key(sid)
+def sid_to_key(sid)
   s1 = ""
   s1 << (sid & 0xFF).chr
   s1 << ((sid >> 8) & 0xFF).chr
@@ -176,11 +176,11 @@ end
 
 @db.each_line do |line|
 	record = line.to_s.split("\t")
-	encnthash = [record[@nthash].to_s[16,record[@nthash].size].to_s].pack("H*")
-	enclmhash = [record[@lmhash].to_s[16,record[@lmhash].size].to_s].pack("H*")
+	encnthash = [record[@nthash][16..-1].to_s].pack("H*")
+	enclmhash = [record[@lmhash][16..-1].to_s].pack("H*")
 	username = record[@username].to_s
 	sid = record[@sid].to_s
-	sid = [sid[sid.size - 8, sid.size]].pack("H*").unpack("N*")[0].to_i
+	sid = [sid[-8..-1]].pack("H*").unpack("N*")[0].to_i
 	pek = record[@pek]
 	if !enclmhash.to_s.empty? || !encnthash.to_s.empty?
 	  nthash = decrypt_with_pek(@dec_pek, encnthash)

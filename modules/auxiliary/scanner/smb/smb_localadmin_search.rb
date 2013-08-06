@@ -28,29 +28,24 @@ class Metasploit3 < Msf::Auxiliary
 
 	def initialize
 		super(
-			'Name'        => 'SMB - Grab Local User Hashes',
+			'Name'        => 'SMB - Check Local Admin',
 			'Description' => %Q{
-				This module extracts local user account password hashes from the
-				SAM and SYSTEM hive files by authenticating to the target machine and
-				downloading a copy of the hives.  The hashes are extracted offline on
-				the attacking machine.  This all happenes without popping a shell or uploading
-				anything to the target machine.  Local Admin credentials (password -or- hash) are required
+				This module will check if a set of credentials has local admin
+				or not by authenticating over SMB and then binding to ADMIN$.
 			},
 			'Author'      =>
 				[
 					'Royce Davis <rdavis[at]accuvant.com>',    # @R3dy__
 				],
 			'References'  => [
-				['URL', 'http://sourceforge.net/projects/smbexec/'],
-				['URL', 'http://www.accuvant.com/blog/2012/11/13/owning-computers-without-shell-access']
+				['URL', 'http://www.pentestgeek.com']
 			],
 			'License'     => MSF_LICENSE
 		)
 		register_options([
-			OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server', 'C$']),
+			OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server', 'ADMIN$']),
 			OptString.new('LOGDIR', [true, 'This is a directory on your local attacking system used to store Hive files and hashes', '/tmp/msfhashes/local']),
 			OptString.new('RPORT', [true, 'The Target port', 445]),
-			OptString.new('WINPATH', [true, 'The name of the WINDOWS directory on the remote host', 'WINDOWS']),
 		], self.class)
 		deregister_options('RHOST')
 	end

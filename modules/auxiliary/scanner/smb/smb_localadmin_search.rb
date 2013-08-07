@@ -44,7 +44,6 @@ class Metasploit3 < Msf::Auxiliary
 		)
 		register_options([
 			OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server', 'ADMIN$']),
-			OptString.new('LOGDIR', [true, 'This is a directory on your local attacking system used to store Hive files and hashes', '/tmp/msfhashes/local']),
 			OptString.new('RPORT', [true, 'The Target port', 445]),
 		], self.class)
 		deregister_options('RHOST')
@@ -68,6 +67,7 @@ class Metasploit3 < Msf::Auxiliary
 			end
 			if check_admin(ip, smbshare)
 				print_good("#{peer} SUCCESS.  User has local admin.  #{datastore['SMBDomain']}\\#{datastore['SMBUser']} #{datastore['SMBPass']} - #{smb_peer_os}")
+				report_creds(datastore['SMBDomain'],datastore['SMBUser'],datastore['SMBPass'],true)
 			end
 			disconnect
 		end
@@ -83,5 +83,26 @@ class Metasploit3 < Msf::Auxiliary
 			vprint_error("#{peer} - Host not admin #{checkerror}")
 			return false
 		end
+	end
+	
+	def report_creds(domain,user,pass,active)
+		login_name = ""
+		login_name = "#{domain}\\#{user}"
+		report_hash = {
+			:host	=> rhost,
+			:port   => datastore['RPORT'],
+			:sname	=> 'smb',
+			:user 	=> login_name,
+			:pass   => pass,
+			:source_type => "user_supplied",
+			:active => active,
+			:admin => "yes"
+		}
+		if pass =~ /[0-9a-fA-F]{32}:[0-9a-fA-F]{32}/
+			report_hash.merge!({:type => 'smb_hash'})
+		else
+			report_hash.merge!({:type => 'password'})
+		end
+		report_auth_info(report_hash)
 	end
 end

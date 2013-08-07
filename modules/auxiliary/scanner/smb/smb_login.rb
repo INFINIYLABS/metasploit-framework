@@ -265,7 +265,6 @@ class Metasploit3 < Msf::Auxiliary
 			:update => :unique_data
 		)
 	end
-
 	def report_creds(domain,user,pass,active)
 		login_name = ""
 
@@ -292,4 +291,5 @@ class Metasploit3 < Msf::Auxiliary
 		end
 		report_auth_info(report_hash)
 	end
+
 end

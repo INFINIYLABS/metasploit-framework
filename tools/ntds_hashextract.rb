@@ -98,18 +98,18 @@ def decrypt_pek(bootkey, enc_pek)
   end
   rc4 = OpenSSL::Cipher::Cipher.new('rc4')
   rc4.key = md5.digest
-  pek=rc4.update(enc_pek[16,52])
-  return pek[36,52]
+  pek=rc4.update(enc_pek[16..-1])
+  return pek[(pek.length - 16)..-1]
 end
 
 def decrypt_with_pek(pek, enc_hash)
     md5 = Digest::MD5.new
     begin
       md5.update(pek)
-      md5.update(enc_hash.to_s[0,16])
+      md5.update(enc_hash[0,16])
       rc4 = OpenSSL::Cipher::Cipher.new('rc4')
       rc4.key = md5.digest
-      hash = rc4.update(enc_hash.to_s[16,32])
+      hash = rc4.update(enc_hash[16..-1])
     rescue
       return "NO PASSWORD"
     end
@@ -126,10 +126,10 @@ def decrypt_single_hash(rid, enc_hash)
   d2.padding = 0
   d2.key = des_k2
   
-  p1 = d1.decrypt.update(enc_hash.to_s[0,8])
+  p1 = d1.decrypt.update(enc_hash[0,8])
   p1 << d1.final
 
-  p2 = d2.decrypt.update(enc_hash.to_s[8,16])
+  p2 = d2.decrypt.update(enc_hash[8..-1])
   p2 << d2.final
   hash = ""
   hash << p1 + p2
@@ -180,7 +180,8 @@ end
 	enclmhash = [record[@lmhash][16..-1].to_s].pack("H*")
 	username = record[@username].to_s
 	sid = record[@sid].to_s
-	sid = [sid[-8..-1]].pack("H*").unpack("N*")[0].to_i
+	sid = [sid[(sid.length - 8)..-1]].pack("H*").unpack("N*")[0].to_i
+	puts sid.inspect
 	pek = record[@pek]
 	if !enclmhash.to_s.empty? || !encnthash.to_s.empty?
 	  nthash = decrypt_with_pek(@dec_pek, encnthash)

